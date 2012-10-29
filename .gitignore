@@ -1,0 +1,80 @@
+# Python ignore #
+*.py[co]
+
+# Packages
+*.egg
+*.egg-info
+dist
+build
+eggs
+parts
+develop-eggs
+.installed.cfg
+
+# Installer logs
+pip-log.txt
+
+# Unit test / coverage reports
+.coverage
+.tox
+
+#Translations
+*.mo
+
+#Mr Developer
+.mr.developer.cfg
+
+
+# Compiled Source #
+###################
+*.com
+*.class
+*.dll
+*.exe
+*.o
+*.so
+*.lo
+*.la
+*.a
+
+# Text Editor #
+###############
+#*
+*~
+
+# Automake / Autoconf #
+#######################
+Makefile
+*.in
+aclocal.m4
+.deps
+.libs
+*.log
+.dirstamp
+ar-lib
+autom4te.cache
+compile
+config.guess
+config.h
+config.status
+config.sub
+configure
+depcomp
+install-sh
+libtool
+ltmain.sh
+m4
+missing
+stamp-h1
+
+# OS generated file #
+#####################
+.DS_Store*
+ehthumbs.db
+Icon?
+Thumbs.db
+
+# Libsync Specific #
+####################
+syncd
+syncc
