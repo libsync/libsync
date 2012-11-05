@@ -18,12 +18,12 @@
 AUTOMAKE_OPTIONS = subdir-objects
 ACLOCAL_AMFLAGS = -I ../m4
 
-lib_LTLIBRARIES = libsync.la
-libsync_la_SOURCES = thread.cxx
-libsync_la_LDFLAGS = -version-info 0:1:0
+lib_LTLIBRARIES = lib.la
+libadt_la_SOURCES = 
+libadt_la_LDFLAGS = -version-info 0:1:0
 
 #TEST SECTION
-#check_PROGRAMS = conf_test
-#TESTS = $(check_PROGRAMS)
-#conf_test_SOURCES = test/list.c
-#conf_test_LDADD = libadt.la
+check_PROGRAMS = conf_test
+TESTS = $(check_PROGRAMS)
+conf_test_SOURCES = test/list.c
+conf_test_LDADD = libadt.la
