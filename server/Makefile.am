@@ -18,9 +18,9 @@
 AUTOMAKE_OPTIONS = subdir-objects
 ACLOCAL_AMFLAGS = -I ../m4
 
-bin_PROGRAMS = sync-daemon
-sync_daemon_SOURCES = main.cxx
-sync_daemon_LDADD = ../src/libsync.la
+bin_PROGRAMS = sync-server
+sync_server_SOURCES = main.cxx
+sync_server_LDADD = ../src/libsync.la
 
 #TEST SECTION
 #check_PROGRAMS = conf_test

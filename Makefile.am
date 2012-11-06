@@ -16,7 +16,7 @@
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
 ACLOCAL_AMFLAGS = -I m4
-SUBDIRS = src client daemon
+SUBDIRS = src client server
 dist_doc_DATA = README
 EXTRA_DIST = autogen.sh $(DX_CONFIG) doc/html
 include doxygen.am
