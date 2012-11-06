@@ -21,6 +21,7 @@ ACLOCAL_AMFLAGS = -I ../m4
 bin_PROGRAMS = sync-server
 sync_server_SOURCES = main.cxx
 sync_server_LDADD = ../src/libsync.la
+sync_server_LDFLAGS = -pthread
 
 #TEST SECTION
 #check_PROGRAMS = conf_test

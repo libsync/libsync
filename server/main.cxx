@@ -19,6 +19,8 @@
   along with this program.  If not, see <http://www.gnu.org/licenses/>.
 */
 
+#include <stdlib.h>
+
 int main(int argc, char ** argv)
 {
   return EXIT_SUCCESS;

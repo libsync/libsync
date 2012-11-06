@@ -23,28 +23,29 @@
 
 #include "thread.hxx"
 
-Thread::Thread(Runnable method) :
+template < class Runnable >
+Thread<Runnable>::Thread(Runnable * method) :
   func(method)
 {}
 
-Runnable *
-Thread::start()
+template < class Runnable >
+Runnable * Thread<Runnable>::start()
 {
   if (pthread_create(&thread, NULL, runner, NULL) != 0)
     return NULL;
   return &func;
 }
 
-Runnable *
-Thread::wait()
+template < class Runnable >
+Runnable * Thread<Runnable>::wait()
 {
   if (pthread_join(&thread, NULL) != 0)
     return NULL;
   return &func;
 }
 
-void *
-Thread::runner(void * args)
+template < class Runnable >
+void * Thread<Runnable>::runner(void * args)
 {
   func->run();
   return NULL;
@@ -52,56 +53,53 @@ Thread::runner(void * args)
 
 Lock::Lock()
 {
-  pthread_mutex_init(&lock, NULL, NULL);
+  pthread_mutex_init(&lck, NULL);
 }
 
 Lock::~Lock()
 {
-  pthread_mutex_destroy(&lock);
+  pthread_mutex_destroy(&lck);
 }
 
-void
-Lock::lock()
+void Lock::lock()
 {
-  pthread_mutex_lock(&lock);
+  pthread_mutex_lock(&lck);
 }
 
-bool
-Lock::try_lock()
+bool Lock::try_lock()
 {
-  return pthread_mutex_trylock(&lock) == 0;
+  return pthread_mutex_trylock(&lck) == 0;
 }
 
-void
-Lock::unlock()
+void Lock::unlock()
 {
-  pthread_mutex_unlock(&lock);
+  pthread_mutex_unlock(&lck);
 }
 
 Condition::Condition()
 {
-  pthread_mutex_init(&lock, NULL);
+  pthread_mutex_init(&lck, NULL);
   pthread_cond_init(&cond, NULL);
 }
 
 Condition::~Condition()
 {
   pthread_cond_destroy(&cond);
-  pthread_mutex_destroy(&lock);
+  pthread_mutex_destroy(&lck);
 }
 
-Condition::lock()
+void Condition::lock()
 {
-  pthread_mutex_lock(&lock);
+  pthread_mutex_lock(&lck);
 }
 
-Condition::wait()
+void Condition::wait()
 {
-  pthread_cond_wait(&cond, &lock);
+  pthread_cond_wait(&cond, &lck);
 }
 
-Condition::signal()
+void Condition::signal()
 {
   pthread_cond_signal(&cond);
-  pthread_mutex_unlock(&lock);
+  pthread_mutex_unlock(&lck);
 }

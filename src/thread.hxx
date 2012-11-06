@@ -30,10 +30,11 @@ class Thread
 public:
   Thread(Runnable * method);
 
-  Runnable * join();
+  Runnable * start();
+  Runnable * wait();
 private:
   pthread_t thread;
-  Runnable func;
+  Runnable * func;
   void * runner(void * args);
 };
 
@@ -46,7 +47,7 @@ public:
   bool try_lock();
   void unlock();
 private:
-  pthread_mutex_t lock;
+  pthread_mutex_t lck;
 };
 
 class Condition
@@ -58,7 +59,7 @@ public:
   void wait();
   void signal();
 private:
-  pthread_mutex_t lock;
+  pthread_mutex_t lck;
   pthread_cond_t cond;
 };
 

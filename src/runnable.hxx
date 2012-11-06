@@ -22,7 +22,6 @@
 #ifndef __RUNNABLE_HXX__
 #define __RUNNABLE_HXX__
 
-template
 class Runnable
 {
 public:
