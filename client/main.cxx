@@ -20,8 +20,20 @@
 */
 
 #include <stdlib.h>
+#include <stdio.h>
+#include <thread>
+
+using namespace std;
+
+void mad(int i) {
+  printf("%d\n", i);
+}
 
 int main(int argc, char ** argv)
 {
+  thread t1(mad, 1);
+  thread t2(mad, 0);
+  t1.join();
+  t2.join();
   return EXIT_SUCCESS;
 }
