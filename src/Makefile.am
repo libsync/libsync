@@ -1,4 +1,4 @@
-# Copyright (C) 2012 William Kennington
+# Copyright (C) 2012 William A. Kennington III
 #
 # This file is part of Libsync.
 #
@@ -19,7 +19,7 @@ AUTOMAKE_OPTIONS = subdir-objects
 ACLOCAL_AMFLAGS = -I ../m4
 
 lib_LTLIBRARIES = libsync.la
-libsync_la_SOURCES = thread.cxx
+libsync_la_SOURCES = thread.cxx net.cxx config.cxx log.cxx metadata.cxx watchdog.cxx connector_sock.cxx
 libsync_la_LDFLAGS = -version-info 0:1:0
 
 #TEST SECTION

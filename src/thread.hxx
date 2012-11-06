@@ -1,5 +1,5 @@
 /*
-  A wrapper for the in use thread library for portability between OS's
+  A wrapper thread library for portability between OS's
 
   Copyright (C) 2012 William A. Kennington III
 
@@ -22,18 +22,44 @@
 #ifndef __THREAD_HXX__
 #define __THREAD_HXX__
 
-#include <pthread.h>
-
 #include "runnable.hxx"
 
-template < template <typename T> class Runnable >
+template < class Runnable >
 class Thread
 {
 public:
-  Thread();
-  Thread();
+  Thread(Runnable * method);
+
+  Runnable * join();
 private:
   pthread_t thread;
+  Runnable func;
+  void * runner(void * args);
+};
+
+class Lock
+{
+public:
+  Lock();
+  ~Lock();
+  void lock();
+  bool try_lock();
+  void unlock();
+private:
+  pthread_mutex_t lock;
+};
+
+class Condition
+{
+public:
+  Condition();
+  ~Condition();
+  void lock();
+  void wait();
+  void signal();
+private:
+  pthread_mutex_t lock;
+  pthread_cond_t cond;
 };
 
 #endif

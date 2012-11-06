@@ -1,4 +1,4 @@
-# Copyright (C) 2012 William Kennington
+# Copyright (C) 2012 William A. Kennington III
 #
 # This file is part of Libsync.
 #

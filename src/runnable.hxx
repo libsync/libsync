@@ -22,11 +22,11 @@
 #ifndef __RUNNABLE_HXX__
 #define __RUNNABLE_HXX__
 
-template <typename T>
+template
 class Runnable
 {
 public:
-  virtual T
+  virtual void run() = 0;
 };
 
 #endif

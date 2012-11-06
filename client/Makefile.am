@@ -1,4 +1,4 @@
-# Copyright (C) 2012 William Kennington
+# Copyright (C) 2012 William A. Kennington III
 #
 # This file is part of Libsync.
 #
@@ -18,12 +18,12 @@
 AUTOMAKE_OPTIONS = subdir-objects
 ACLOCAL_AMFLAGS = -I ../m4
 
-lib_LTLIBRARIES = lib.la
-libadt_la_SOURCES = 
-libadt_la_LDFLAGS = -version-info 0:1:0
+bin_PROGRAMS = sync-client
+sync_daemon_SOURCES = main.cxx
+sync_daemon_LDADD = ../src/libsync.la
 
 #TEST SECTION
-check_PROGRAMS = conf_test
-TESTS = $(check_PROGRAMS)
-conf_test_SOURCES = test/list.c
-conf_test_LDADD = libadt.la
+#check_PROGRAMS = conf_test
+#TESTS = $(check_PROGRAMS)
+#conf_test_SOURCES = test/list.c
+#conf_test_LDADD = libadt.la
