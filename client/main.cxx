@@ -19,21 +19,16 @@
   along with this program.  If not, see <http://www.gnu.org/licenses/>.
 */
 
-#include <stdlib.h>
-#include <stdio.h>
+#include <cstdlib>
 #include <thread>
+#include <iostream>
 
-using namespace std;
-
-void mad(int i) {
-  printf("%d\n", i);
-}
+#include "../src/log.hxx"
 
 int main(int argc, char ** argv)
 {
-  thread t1(mad, 1);
-  thread t2(mad, 0);
-  t1.join();
-  t2.join();
+  log.add_output(&std::cout);
+  log.add_output("out.log");
+  log.message("hi", 1);
   return EXIT_SUCCESS;
 }
