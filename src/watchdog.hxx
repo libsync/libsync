@@ -25,15 +25,15 @@
 class Watchdog
 {
 public:
-  enum Status
+  enum FileStatus
     {
       modified = 0,
       deleted
     };
   Watchdog();
   void add_path();
-  void del_path():
-  wait();
+  void del_path();
+  void wait();
 };
 
 #endif

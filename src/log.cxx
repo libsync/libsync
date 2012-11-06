@@ -19,9 +19,12 @@
   along with this program.  If not, see <http://www.gnu.org/licenses/>.
 */
 
+#include <sstream>
 #include <ctime>
 
 #include "log.hxx"
+
+#define DATE_SIZE 20
 
 Log log;
 
@@ -55,7 +58,8 @@ void Log::add_output(const std::string & filename)
 {
   mutex.lock();
 
-  std::ofstream * file = new std::ofstream(filename);
+  std::ofstream * file = new std::ofstream(filename,
+                                           std::ios::out | std::ios::app);
 
   files.push_back(file);
   outs.push_back(file);
@@ -75,7 +79,15 @@ void Log::set_level(int level)
 void Log::message(const std::string & message, int level)
 {
   // Format the message string
-  std::string output = message;
+  time_t rawtime;
+  char date[DATE_SIZE];
+  time(&rawtime);
+  strftime(date, DATE_SIZE, "%x %X", localtime(&rawtime));
+
+  std::stringstream build;
+  build << "[Level " << level << "][" << date;
+  build << "]: " << message << "\n";
+  std::string output = build.str();
 
   mutex.lock();
 
