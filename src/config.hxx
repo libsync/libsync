@@ -19,8 +19,8 @@
   along with this program.  If not, see <http://www.gnu.org/licenses/>.
 */
 
-#ifndef __CONFIG_H__
-#define __CONFIG_H__
+#ifndef __CONFIG_HXX__
+#define __CONFIG_HXX__
 
 #include <string>
 #include <unordered_map>

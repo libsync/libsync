@@ -19,8 +19,8 @@
   along with this program.  If not, see <http://www.gnu.org/licenses/>.
 */
 
-#ifndef __LOG_H__
-#define __LOG_H__
+#ifndef __LOG_HXX__
+#define __LOG_HXX__
 
 #include <vector>
 #include <ostream>
