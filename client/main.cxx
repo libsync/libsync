@@ -27,8 +27,7 @@
 
 int main(int argc, char ** argv)
 {
-  log.add_output(&std::cout);
-  log.add_output("out.log");
-  log.message("hi", 1);
+  global_log.add_output(&std::cout);
+  global_log.message("hi", 1);
   return EXIT_SUCCESS;
 }

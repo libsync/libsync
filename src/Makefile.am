@@ -21,9 +21,23 @@ ACLOCAL_AMFLAGS = -I ../m4
 lib_LTLIBRARIES = libsync.la
 libsync_la_SOURCES = net.cxx config.cxx log.cxx metadata.cxx watchdog.cxx connector_sock.cxx
 libsync_la_LDFLAGS = -version-info 0:1:0
+libsync_la_LIBADD = $(BOOST_REGEX_LIBS)
 
 #TEST SECTION
-#check_PROGRAMS = conf_test
-#TESTS = $(check_PROGRAMS)
-#conf_test_SOURCES = test/list.c
-#conf_test_LDADD = libadt.la
+check_PROGRAMS = log_test config_test net_test watchdog_test connector_sock_test
+TESTS = $(check_PROGRAMS)
+
+log_test_SOURCES = test/log.cxx ../util/gtest_main.cc
+log_test_LDADD = libsync.la -lgtest $(BOOST_REGEX_LIBS)
+
+config_test_SOURCES = test/config.cxx ../util/gtest_main.cc
+config_test_LDADD = libsync.la -lgtest
+
+net_test_SOURCES = test/net.cxx ../util/gtest_main.cc
+net_test_LDADD = libsync.la -lgtest
+
+watchdog_test_SOURCES = test/watchdog.cxx ../util/gtest_main.cc
+watchdog_test_LDADD = libsync.la -lgtest
+
+connector_sock_test_SOURCES = test/connector_sock.cxx ../util/gtest_main.cc
+connector_sock_test_LDADD = libsync.la -lgtest

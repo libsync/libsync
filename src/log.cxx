@@ -26,7 +26,7 @@
 
 #define DATE_SIZE 20
 
-Log log;
+Log global_log;
 
 Log::Log() :
   level(1)
@@ -92,9 +92,12 @@ void Log::message(const std::string & message, int level)
   mutex.lock();
 
   // Print the formatted message to all of the output streams
-  if (level == this->level)
+  if (level <= this->level)
     for (auto out = outs.begin(); out != outs.end(); out++)
-      **out << output;
+      {
+        **out << output;
+        (*out)->flush();
+      }
 
   mutex.unlock();
 }

@@ -83,6 +83,6 @@ private:
   std::mutex mutex;
 };
 
-extern Log log;
+extern Log global_log;
 
 #endif
