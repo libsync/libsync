@@ -45,7 +45,6 @@ public:
    */
   void read(const std::string & filename);
 
-
   /**
    * Returns whether the specified key exists in the config
    * @param key The string representation of the key value

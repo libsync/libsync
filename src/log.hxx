@@ -35,6 +35,10 @@ class Log
 {
 public:
   /**
+   */
+  static const int ERROR = 1, WARNING = 2, NOTICE = 3;
+
+  /**
    * The default log, has a message level of 1
    */
   Log();
@@ -44,6 +48,18 @@ public:
    * @param level The message display level
    */
   Log(int level);
+
+  /**
+   * Makes a copy of the other log
+   * @param other The other log to copy
+   */
+  Log(const Log & other);
+
+  /**
+   * Copies the other log
+   * @param other The other log to copy
+   */
+  Log & operator=(const Log & other);
 
   /**
    * Destroys the log and any handles to files
@@ -76,11 +92,38 @@ public:
    */
   void message(const std::string & message, int level);
 
+  /**
+   * Writes a message to all of the output streams
+   * @param message The message to write
+   * @param level The importance level of the message
+   */
+  void message(const char * message, int level);
+
 private:
+  struct File
+  {
+    std::ofstream *file;
+    size_t handles;
+    std::mutex mutex;
+  };
+
+  static std::mutex global_mutex;
+
   int level;
   std::vector<std::ostream *> outs;
-  std::vector<std::ofstream *> files;
+  std::vector<File *> files;
   std::mutex mutex;
+
+  /**
+   * Destroys any memory allocated by the current log
+   */
+  void clear();
+
+  /**
+   * Copies the streams and output level from another log
+   * @param other The other log to copy from
+   */
+  void copy(const Log & other);
 };
 
 extern Log global_log;

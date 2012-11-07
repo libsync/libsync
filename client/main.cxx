@@ -24,10 +24,33 @@
 #include <iostream>
 
 #include "../src/log.hxx"
+#include "../src/config.hxx"
 
 int main(int argc, char ** argv)
 {
-  global_log.add_output(&std::cout);
-  global_log.message("hi", 1);
+  try
+    {
+      // Parse command line arguments
+
+      // Retrieve the Configuration File
+      Config conf("client.conf");
+
+      // Setup the Global Log
+      global_log.add_output(&std::cout);
+      if (conf.exists("log_file"))
+        global_log.add_output(conf.get_str("log_file"));
+      if (conf.exists("log_level"))
+        global_log.set_level(conf.get_int("log_level"));
+      else
+        global_log.set_level(Log::NOTICE);
+    }
+  catch(const char * e)
+    {
+      std::cerr << e << std::endl;
+      return EXIT_FAILURE;
+    }
+
+  global_log.message("Successfully started!", Log::NOTICE);
+
   return EXIT_SUCCESS;
 }
