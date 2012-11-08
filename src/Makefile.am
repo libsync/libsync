@@ -24,7 +24,7 @@ libsync_la_LDFLAGS = -version-info 0:1:0
 libsync_la_LIBADD = $(BOOST_REGEX_LIBS)
 
 #TEST SECTION
-check_PROGRAMS = log_test config_test net_test watchdog_test connector_sock_test
+check_PROGRAMS = log_test config_test net_test watchdog_test connector_sock_test metadata_test
 TESTS = $(check_PROGRAMS)
 
 log_test_SOURCES = test/log.cxx ../util/gtest_main.cc
@@ -41,3 +41,6 @@ watchdog_test_LDADD = libsync.la -lgtest
 
 connector_sock_test_SOURCES = test/connector_sock.cxx ../util/gtest_main.cc
 connector_sock_test_LDADD = libsync.la -lgtest
+
+metadata_test_SOURCES = test/metadata.cxx ../util/gtest_main.cc
+metadata_test_LDADD = libsync.la -lgtest

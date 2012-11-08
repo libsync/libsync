@@ -20,19 +20,143 @@
 */
 
 #include <unordered_map>
+#include <sys/types.h>
+#include <sys/stat.h>
+#include <dirent.h>
+#include <cstdint>
+#include <string>
+#include <cstring>
 
+#include "net.hxx"
 #include "metadata.hxx"
 
+static uint8_t read8(uint8_t * & data, size_t & size)
+{
+  if (size < 1)
+    throw "Metadata object too small to deserialize";
+  size--;
+  return *(data++);
+}
+
+static uint16_t read16(uint8_t * & data, size_t & size)
+{
+  if (size < 2)
+    throw "Metadata object too small to deserialize";
+  size -= 2;
+  uint16_t out = *((uint16_t*)data);
+  data += 2;
+  return be16toh(out);
+}
+
+static uint32_t read32(uint8_t * & data, size_t & size)
+{
+  if (size < 4)
+    throw "Metadata object too small to deserialize";
+  size -= 4;
+  uint32_t out = *((uint32_t*)data);
+  data += 4;
+  return be32toh(out);
+}
+
+static uint64_t read64(uint8_t * & data, size_t & size)
+{
+  if (size < 8)
+    throw "Metadata object too small to deserialize";
+  size -= 8;
+  uint64_t out = *((uint64_t*)data);
+  data += 8;
+  return be64toh(out);
+}
+
+Metadata::Metadata()
+{}
+
+#include <iostream>
 Metadata::Metadata(uint8_t * data, size_t size)
 {
+  // Get the size of the map
+  size_t count = read64(data, size);
+
+  while(count > 0)
+    {
+      // Get the filename
+      size_t len = read64(data, size);
+      if (size <= len)
+        throw "Metadata object too small to deserialize";
+      std::string filename;
+      filename.append((char*)data, len);
+      data += len;
+      size -= len;
+
+      // Get the modified and deleted
+      Data d;
+      d.modified = read64(data, size);
+      d.deleted = read8(data, size);
+
+      // Append the file to the metadata
+      files[filename] = d;
+
+      count--;
+    }
 }
 
 Metadata::Metadata(const std::string & path)
 {
+  build(path, "/");
+}
+
+void Metadata::build(const std::string & rootpath, const std::string & path)
+{
+  DIR * dir = opendir((rootpath + path).c_str());
+  if (dir == NULL)
+    throw "Failed to calculate metadata";
+
+  struct dirent * entry;
+  while((entry = readdir(dir)) != NULL)
+    if (entry->d_type == DT_DIR && strcmp(".", entry->d_name)
+        && strcmp("..", entry->d_name))
+      build(rootpath, path + entry->d_name + "/");
+    else if (entry->d_type == DT_REG)
+      {
+        struct stat stats;
+        if (stat((rootpath + path + entry->d_name).c_str(), &stats) < 0)
+          continue;
+        Data d;
+        d.modified = stats.st_mtime;
+        d.deleted = false;
+        files[path + entry->d_name] = d;
+      }
+
+  closedir(dir);
 }
 
 uint8_t * Metadata::serialize(size_t & size)
 {
+  std::string out;
+
+  // Append the size
+  size_t len = htobe64(files.size());
+  out.append((char*)&len, 8);
+
+  for (auto it = files.begin(); it != files.end(); it++)
+    {
+      // Write out the filename
+      len = htobe64(it->first.length());
+      out.append((char*)&len, 8);
+      out.append(it->first);
+
+      // Write the attributes
+      uint64_t mod = htobe64(it->second.modified);
+      out.append((char*)&mod, 8);
+      out.append((char*)&it->second.deleted, 1);
+    }
+
+  // Copy the serialized bytes into the output buffer
+  size = out.length();
+  uint8_t * final = new uint8_t[size];
+  for (size_t i = 0; i < size; i++)
+    final[i] = out.at(i);
+  return final;
 }
 
 std::unordered_map<std::string, Metadata::Data>::const_iterator

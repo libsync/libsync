@@ -35,6 +35,7 @@ public:
     bool deleted;
   };
 
+  Metadata();
   Metadata(uint8_t * data, size_t size);
   Metadata(const std::string & path);
   uint8_t * serialize(size_t & size);
@@ -48,6 +49,7 @@ public:
   void delete_file(const std::string & filename, uint64_t modified);
 private:
   std::unordered_map<std::string, Data> files;
+  void build(const std::string & rootpath, const std::string & path);
 };
 
 #endif
