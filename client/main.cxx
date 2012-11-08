@@ -151,19 +151,32 @@ int main(int argc, char * argv[])
 
   while(true)
     {
-      Watchdog::Data data = wd.wait();
-      if (data.status == Watchdog::FileStatus::modified)
+      try
         {
-          meta->modify_file(data.filename, data.modified);
-          std::ifstream file((sync_dir + data.filename).c_str(),
-                             std::ios::in | std::ios::binary);
-          conn->push_file(data.filename, data.modified, file, data.size);
-          file.close();
+          Watchdog::Data data = wd.wait();
+          data.filename = data.filename.substr(sync_dir.length());
+          if (data.status == Watchdog::FileStatus::modified)
+            {
+              meta->modify_file(data.filename, data.modified);
+              std::cout <<  data.filename << std::endl;
+              std::ifstream file((sync_dir + data.filename).c_str(),
+                                 std::ios::in | std::ios::binary);
+              conn->push_file(data.filename, data.modified, file, data.size);
+              file.close();
+            }
+          else
+            {
+              meta->delete_file(data.filename, data.modified);
+              conn->delete_file(data.filename, data.modified);
+            }
         }
-      else
+      catch(const char * e)
         {
-          meta->delete_file(data.filename, data.modified);
-          conn->delete_file(data.filename, data.modified);
+          global_log.message(e, 1);
+        }
+      catch(const std::string & e)
+        {
+          global_log.message(e, 1);
         }
     }
 
