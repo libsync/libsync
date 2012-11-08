@@ -46,10 +46,10 @@ public:
 
   void write(const uint8_t * data, size_t size);
   void write(const std::string & data);
-  void write(uint8_t b);
-  void write(uint16_t i);
-  void write(uint32_t i);
-  void write(uint64_t i);
+  void write8(uint8_t b);
+  void write16(uint16_t i);
+  void write32(uint32_t i);
+  void write64(uint64_t i);
 
   ssize_t read(uint8_t * data, size_t size);
   void read_all(uint8_t * data, size_t size);

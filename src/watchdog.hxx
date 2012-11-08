@@ -1,5 +1,5 @@
 /*
-  Abstracts the file system watching tasks to system dependent utilities
+  Watchdog file change notifier
 
   Copyright (C) 2012 William A. Kennington III
 
@@ -19,8 +19,11 @@
   along with this program.  If not, see <http://www.gnu.org/licenses/>.
 */
 
-#ifndef __WATCHDOG_H__
-#define __WATCHDOG_H__
+#ifndef __WATCHDOG_HXX__
+#define __WATCHDOG_HXX__
+
+#include <string>
+#include <unordered_map>
 
 class Watchdog
 {
@@ -30,10 +33,28 @@ public:
       modified = 0,
       deleted
     };
+  struct Data
+  {
+    std::string filename;
+    FileStatus status;
+    uint64_t modified;
+    bool directory;
+  };
+
   Watchdog();
-  void add_path();
-  void del_path();
-  void wait();
+  ~Watchdog();
+
+  void add_watch(const std::string & path, bool recursive = true);
+  void del_watch(const std::string & path);
+
+  Data wait();
+private:
+  int inotify;
+  std::unordered_map<std::string, int> paths;
+  std::unordered_map<int, std::string> wds;
+  std::string inotify_bytes;
+
+  std::string gather_event();
 };
 
 #endif

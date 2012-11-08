@@ -1,0 +1,57 @@
+* Protocol V0
+** Handshake
+*** first byte of the message from server, versions from 0-128, msb of 1 means more bytes in version number
+*** Next byte is the command
+**** 0 for login
+***** Next 2 bytes are the length of the username followed by all of the username chars
+***** Next 2 bytes are the length of the password followed by the password chars
+***** Server responds with a single byte
+****** 0 for success
+****** 1 for invalid credentials
+**** 1 for register
+***** Next 2 bytes are the length of the username followed by all of the username chars
+***** Next 2 bytes are the length of the password followed by the password chars
+***** Server responds with a single byte
+****** 0 for success
+****** 1 for already existing user
+****** 2 for closed registrations
+** Commands to the server
+   Represented as a single byte similar to the version number, until more are needed
+*** a null byte signals the end of the connection
+*** a 1 byte gets full metadata
+**** Server
+     First 4 bytes are the length
+     Rest of the data are serialized metadata package
+*** a 2 byte means file push to server
+**** Client
+     First 8 bytes are the modification time of the file in seconds
+     Next 4 bytes are the length of the filename
+     Next 8 bytes are the length of the file
+     Next data is the filename itself
+     Next data is the file contents
+**** Server
+     1 byte with 0 for success and 1 for failure
+*** a 3 byte means file pull from server
+**** Client
+     First 4 bytes are the length of the filename
+     Rest of the data is the filename
+**** Server
+     First 8 bytes are the modification time of the file in seconds
+     Next 8 bytes are the length of the file
+     Next data is the file contents
+** Commands to the client
+   Represented as a single byte similar to the version number, until more are needed
+*** a null byte signals the end of the connection
+*** a 1 byte means a file has changed
+**** Server
+***** First byte is the status
+      0 for modification
+      1 for deletion
+***** Next 4 bytes are the length
+***** Rest of the data is the filename
+**** Client
+     0 for success
+     1 for failure
+
+
+NOTE: NEED AN ACK SYSTEM FOR COMMANDS TO PREVENT RACE CONDITIONS

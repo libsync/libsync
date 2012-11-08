@@ -26,6 +26,7 @@
 #include "../src/log.hxx"
 #include "../src/config.hxx"
 #include "../src/connector_sock.hxx"
+#include "../src/watchdog.hxx"
 
 int main(int argc, char * argv[])
 {
@@ -81,7 +82,7 @@ int main(int argc, char * argv[])
     {
       // Attempt to create the connection type specified in the config
       if (!conf.exists("conn") || conf.get_str("conn") == "sock")
-        conn = new SockConnector;
+        conn = NULL;
       else
         throw "Unrecognized connector type - " + conf.get_str("conn");
     }
@@ -97,7 +98,6 @@ int main(int argc, char * argv[])
     }
 
   global_log.message("Successfully started!", Log::NOTICE);
-  delete conn;
 
   return EXIT_SUCCESS;
 }

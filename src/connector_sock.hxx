@@ -22,10 +22,34 @@
 #ifndef __CONNECTOR_SOCKET_HXX__
 #define __CONNECTOR_SOCKET_HXX__
 
+#include <cstdint>
+#include <istream>
+#include <ostream>
+#include <string>
+
+#include "net.hxx"
 #include "connector.hxx"
+#include "metadata.hxx"
 
 class SockConnector : public Connector
 {
+public:
+  SockConnector(const std::string & host, uint16_t port,
+                const std::string & user, const std::string & pass,
+                bool reg = false);
+  ~SockConnector();
+
+  Metadata * get_metadata();
+  void push_file(const std::string & filename, uint64_t modified,
+                 std::istream & data, size_t data_size);
+  void get_file(const std::string & filename, uint64_t & modified,
+                std::ostream & data);
+private:
+  NetClient client;
+  std::string user, pass;
+  Net * net;
+
+  void connect(bool reg = false);
 };
 
 #endif

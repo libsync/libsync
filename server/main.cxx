@@ -34,6 +34,10 @@ int main(int argc, char * argv[])
       NetServer ns("localhost", 17654);
       Net * net = ns.accept();
       net->write("Hello World\n");
+      uint8_t s[16];
+      net->read(s, 16);
+      delete net;
+      std::cout << (char*)s << std::endl;
     }
   catch (const std::string & e)
     {

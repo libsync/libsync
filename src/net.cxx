@@ -72,24 +72,24 @@ void Net::write(const std::string & data)
   write((uint8_t*)data.c_str(), data.length());
 }
 
-void Net::write(uint8_t b)
+void Net::write8(uint8_t b)
 {
   write((uint8_t*)&b, sizeof(b));
 }
 
-void Net::write(uint16_t i)
+void Net::write16(uint16_t i)
 {
   i = htobe16(i);
   write((uint8_t*)&i, sizeof(i));
 }
 
-void Net::write(uint32_t i)
+void Net::write32(uint32_t i)
 {
   i = htobe32(i);
   write((uint8_t*)&i, sizeof(i));
 }
 
-void Net::write(uint64_t i)
+void Net::write64(uint64_t i)
 {
   i = htobe64(i);
   write((uint8_t*)&i, sizeof(i));
@@ -152,7 +152,7 @@ int Net::get_fd() const
 }
 
 NetServer::NetServer(const std::string & host, uint16_t port) :
-  host(host), port(port)
+  host(host), port(port), closed(false)
 {
   struct addrinfo hints, *servinfo;
   int yes = 1, ret;
