@@ -34,17 +34,28 @@
 
 #define LOGIN_INV 1
 
+#define HAND_LOGIN 0
+#define HAND_REG   1
+
+#define REG_CLOSED 2
+
 bool handshake(Net * net)
 {
   // Send the version
   net->write8(0);
 
+  // Check the command
+  uint8_t cmd = net->read8();
+  if (cmd == HAND_REG)
+    {
+      net->write8(REG_CLOSED);
+      return false;
+    }
+
   // Wait for the login
   size_t user_len = (size_t)net->read16();
-  std::cout << "Read User Len" << std::endl;
   uint8_t * user = new uint8_t[user_len+1];
   net->read_all(user, user_len);
-  std::cout << "Read Username" << std::endl;
   user[user_len] = 0;
 
   size_t pass_len = (size_t)net->read16();
@@ -54,7 +65,7 @@ bool handshake(Net * net)
 
   // Check the login
   if (strcmp("william", (char*)user) != 0 ||
-      strcmp("williamisawesome", (char*)pass) != 0)
+      strcmp("iamwilliam", (char*)pass) != 0)
     {
       global_log.message("Failed to authenticate client", Log::NOTICE);
       net->write8(LOGIN_INV);

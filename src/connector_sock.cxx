@@ -141,7 +141,7 @@ void SockConnector::connect(bool reg)
     {
       delete net;
       net = NULL;
-      return;
+      throw "Incompatible Server Version";
     }
 
   // Send login / register
