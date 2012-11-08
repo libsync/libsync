@@ -20,10 +20,16 @@
 */
 
 #include <string>
+#include <errno.h>
+#include <string.h>
 #include <unistd.h>
 #include <sys/socket.h>
 #include <sys/types.h>
+#include <netinet/in.h>
+#include <netdb.h>
+#include <arpa/inet.h>
 #include "net.hxx"
+#include "log.hxx"
 
 Net::Net(int sock, const std::string & host, uint16_t port) :
   sock(sock), closed(false), host(host), port(port)
@@ -41,8 +47,11 @@ static void local_close(int fd)
 
 void Net::close()
 {
-  if (!closed)
-    local_close(sock);
+  if (closed)
+    return;
+
+  local_close(sock);
+  closed = true;
 }
 
 void Net::write(uint8_t * data, size_t size)
@@ -140,19 +149,115 @@ int Net::get_fd() const
 NetServer::NetServer(const std::string & host, uint16_t port) :
   host(host), port(port)
 {
+  struct addrinfo hints, *servinfo;
+  int yes = 1, ret;
+
+  // Allow our socket to bind to both IPv4/v6 on TCP
+  memset(&hints, 0, sizeof hints);
+  hints.ai_family = AF_UNSPEC;
+  hints.ai_socktype = SOCK_STREAM;
+  hints.ai_flags = AI_PASSIVE;
+
+  // Get all of the potential bind addresses
+  if ((ret = getaddrinfo(host.c_str(), std::to_string(port).c_str(),
+                         &hints, &servinfo)) != 0)
+    throw std::string("getaddrinfo: ") + gai_strerror(ret);
+
+  // Bind to the first possible address in the list
+  for(struct addrinfo *it = servinfo; it != NULL; it = it->ai_next)
+    {
+      // Create the socket for the address
+      if ((lsock = socket(it->ai_family, it->ai_socktype,
+                         it->ai_protocol)) == -1)
+        continue;
+
+      // Set the socket to be reusable after unclean shutdown
+      if (setsockopt(lsock, SOL_SOCKET, SO_REUSEADDR, &yes, sizeof(int)) == -1)
+        {
+          local_close(lsock);
+          freeaddrinfo(servinfo);
+          throw "Failed to set reusable socket options";
+        }
+
+      // Attempt to bind to the socket
+      if (bind(lsock, it->ai_addr, it->ai_addrlen) == 0)
+        break;
+
+      // The socket didn't work so close it
+      local_close(lsock);
+      lsock = -1;
+    }
+
+  freeaddrinfo(servinfo);
+
+  // No socket was bound
+  if (lsock = -1)
+    throw std::string("Failed to bind the socket - ") +
+      host + ":" + std::to_string(port);
+
+  // Setup the socket for listening
+  if (listen(lsock, 10) == -1)
+    throw std::string("Failed to list on socket - ")
+      + host + ":" + std::to_string(port);
+
+  global_log.message(std::string("Bound socket on ") +
+                     host + ":" + std::to_string(port), Log::NOTICE);
 }
 
 NetServer::~NetServer()
 {
+  close();
+}
+
+int local_accept(int sockfd, struct sockaddr * addr, socklen_t *addrlen)
+{
+  accept(sockfd, addr, addrlen);
 }
 
 Net * NetServer::accept()
 {
-  return NULL;
+  int sock;
+  struct sockaddr_storage addr;
+  socklen_t addr_size = sizeof(addr);
+
+  // Accept the connection
+  if (sock = local_accept(lsock, (struct sockaddr *)&addr, &addr_size) == -1)
+    throw "Failed to accept connection";
+
+  // Retrieve the remote info
+  char addr_str[INET6_ADDRSTRLEN];
+  uint16_t rport;
+
+  // IPv4 Info
+  if (((struct sockaddr *)&addr)->sa_family == AF_INET)
+    {
+      rport = be16toh(((struct sockaddr_in *)&addr)->sin_port);
+      inet_ntop(addr.ss_family, &(((struct sockaddr_in *)&addr)->sin_addr),
+                addr_str, INET6_ADDRSTRLEN);
+    }
+
+  // IPv6 Info
+  else
+    {
+      rport = be16toh(((struct sockaddr_in6 *)&addr)->sin6_port);
+      inet_ntop(addr.ss_family, &(((struct sockaddr_in6 *)&addr)->sin6_addr),
+                addr_str, INET6_ADDRSTRLEN);
+    }
+
+  Net * net = new Net(sock, std::string(addr_str), rport);
+  global_log.message(std::string("Accepted connection from ") + addr_str +
+                                 ":" + std::to_string(rport), Log::NOTICE);
+
+  return net;
 }
 
 void NetServer::close()
 {
+  if (closed)
+    return;
+
+  local_close(lsock);
+  closed = true;
 }
 
 NetClient::NetClient(const std::string & host, uint16_t port) :

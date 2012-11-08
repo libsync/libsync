@@ -75,7 +75,9 @@ public:
   Net * accept();
   void close();
 private:
-  int listen;
+  int lsock;
+  bool closed;
+
   std::string host;
   uint16_t port;
 };
