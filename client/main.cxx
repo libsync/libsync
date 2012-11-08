@@ -27,16 +27,30 @@
 #include "../src/config.hxx"
 #include "../src/connector_sock.hxx"
 
-int main(int argc, char ** argv)
+int main(int argc, char * argv[])
 {
   Config conf;
   std::string conf_file("client.conf");
   bool daemonize = false;
   Connector * conn = NULL;
 
+  // Catch errors in stderr until we have the log output setup
   try
     {
       // Parse command line arguments
+      for (int i = 1; i < argc; i++)
+        {
+          std::string arg(argv[i]);
+          if (arg == "-d")
+            daemonize = true;
+          else if (arg == "-c" && i+1 < argc && argv[i+1][0] != '-')
+            {
+              conf_file = argv[i+1];
+              i++;
+            }
+          else
+            throw "sync-client [-d] [-c <config_file>]";
+        }
 
       // Retrieve the Configuration File
       conf.read(conf_file);
@@ -50,12 +64,6 @@ int main(int argc, char ** argv)
         global_log.set_level(conf.get_int("log_level"));
       else
         global_log.set_level(Log::NOTICE);
-
-      // Attempt to connect
-      if (!conf.exists("conn") || conf.get_str("conn") == "sock")
-        conn = new SockConnector;
-      else
-        throw "Unrecognized connector type: " + conf.get_str("conn");
     }
   catch(const char * e)
     {
@@ -65,6 +73,26 @@ int main(int argc, char ** argv)
   catch(const std::string & e)
     {
       std::cerr << e << std::endl;
+      return EXIT_FAILURE;
+    }
+
+  // Catch errors to the log output
+  try
+    {
+      // Attempt to create the connection type specified in the config
+      if (!conf.exists("conn") || conf.get_str("conn") == "sock")
+        conn = new SockConnector;
+      else
+        throw "Unrecognized connector type - " + conf.get_str("conn");
+    }
+  catch(const char * e)
+    {
+      global_log.message(e, 1);
+      return EXIT_FAILURE;
+    }
+  catch(const std::string & e)
+    {
+      global_log.message(e, 1);
       return EXIT_FAILURE;
     }
 
