@@ -26,6 +26,7 @@
 #include <iostream>
 #include <fstream>
 #include <thread>
+#include <sys/stat.h>
 
 #include "../src/net.hxx"
 #include "../src/log.hxx"
@@ -38,6 +39,14 @@
 #define HAND_REG   1
 
 #define REG_CLOSED 2
+
+uint64_t filesize(const std::string & path)
+{
+  struct stat stats;
+  if (stat(path.c_str(), &stats) < 0)
+    throw std::string("File does not exist: ") + path;
+  return (uint64_t)stats.st_size;
+}
 
 bool handshake(Net * net)
 {
@@ -77,7 +86,39 @@ bool handshake(Net * net)
   return true;
 }
 
-void client(Net * net)
+#define CMD_QUIT 0
+#define CMD_META 1
+#define CMD_PUSH 2
+#define CMD_PULL 3
+#define CMD_DEL 4
+
+#define BUFF 2048
+
+bool exec_command(Net * net, Metadata * mtd)
+{
+  uint8_t cmd = net->read8();
+  if (cmd == CMD_QUIT)
+    return true;
+
+  else if (cmd == CMD_META)
+    {
+    }
+  else if (cmd == CMD_PUSH)
+    {
+    }
+  else if (cmd == CMD_PULL)
+    {
+    }
+  else if (cmd == CMD_DEL)
+    {
+    }
+  else
+    throw "Invalid command from client";
+
+  return false;
+}
+
+void client(std::string store_dir, Net * net)
 {
   try
     {
@@ -86,17 +127,49 @@ void client(Net * net)
           delete net;
           return;
         }
-      while (true)
+
+      // Extract the metadata contents
+      std::string mtd_name = store_dir + "/william.mtd";
+      uint64_t mtd_size;
+      uint8_t * mtd_buff;
+      bool mtd_exists = false;
+      Metadata mtd;
+      try
         {
+          mtd_size = filesize(mtd_name);
+          mtd_exists = true;
         }
+      catch(const std::string & e) {}
+      if (mtd_exists)
+        {
+          mtd_buff = new uint8_t[mtd_size];
+          std::ifstream fin(mtd_name, std::ios::in | std::ios::binary);
+          fin.read((char*)mtd_buff, mtd_size);
+          fin.close();
+          mtd = Metadata(mtd_buff, mtd_size);
+          delete mtd_buff;
+        }
+
+      while (true)
+        if(exec_command(net, &mtd))
+          break;
+        else
+          {
+            // Save the metadata after each call
+            mtd_buff = mtd.serialize(mtd_size);
+            std::ofstream fout(mtd_name, std::ios::out | std::ios::binary);
+            fout.write((char*)mtd_buff, mtd_size);
+            fout.close();
+            delete mtd_buff;
+          }
     }
   catch(const std::string & e)
     {
-      std::cout << "Client Failed:" << e << std::endl;
+      global_log.message(std::string("Client Failed: ") + e, 2);
     }
   catch(const char * e)
     {
-      std::cout << "Client Failed: " << e << std::endl;
+      global_log.message(std::string("Client Failed: ") + e, 2);
     }
 }
 
@@ -159,13 +232,18 @@ int main(int argc, char * argv[])
       server = new NetServer(conf.get_str("bind_host"),
                            conf.get_int("bind_port"));
 
+      // Check to make sure we have a storage directory
+      if (!conf.exists("store_dir"))
+        throw "Requires a directory to store data in";
+      store_dir = conf.get_str("store_dir");
+
       global_log.message("Successfully started!", Log::NOTICE);
 
       // Accept all client connections and spawn a thread for each
       while (true)
         {
           Net * net = server->accept();
-          std::thread c_thread(client, net);
+          std::thread c_thread(client, store_dir, net);
           c_thread.detach();
         }
     }
