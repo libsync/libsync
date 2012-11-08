@@ -54,7 +54,7 @@ void Net::close()
   closed = true;
 }
 
-void Net::write(uint8_t * data, size_t size)
+void Net::write(const uint8_t * data, size_t size)
 {
   ssize_t wrote;
   while (size > 0)
@@ -64,7 +64,12 @@ void Net::write(uint8_t * data, size_t size)
         size -= wrote;
       }
     else
-      throw "Write error during transmission";
+      throw std::string("Write error during transmission: ") + strerror(errno);
+}
+
+void Net::write(const std::string & data)
+{
+  write((uint8_t*)data.c_str(), data.length());
 }
 
 void Net::write(uint8_t b)
@@ -105,7 +110,7 @@ void Net::read_all(uint8_t * data, size_t size)
         size -= len;
       }
     else
-      throw "Read error during transmission";
+      throw std::string("Read error during transmission: ") + strerror(errno);
 }
 
 uint8_t Net::read8()
@@ -164,6 +169,7 @@ NetServer::NetServer(const std::string & host, uint16_t port) :
     throw std::string("getaddrinfo: ") + gai_strerror(ret);
 
   // Bind to the first possible address in the list
+  lsock = -1;
   for(struct addrinfo *it = servinfo; it != NULL; it = it->ai_next)
     {
       // Create the socket for the address
@@ -191,13 +197,13 @@ NetServer::NetServer(const std::string & host, uint16_t port) :
   freeaddrinfo(servinfo);
 
   // No socket was bound
-  if (lsock = -1)
+  if (lsock == -1)
     throw std::string("Failed to bind the socket - ") +
       host + ":" + std::to_string(port);
 
   // Setup the socket for listening
   if (listen(lsock, 10) == -1)
-    throw std::string("Failed to list on socket - ")
+    throw std::string("Failed to listen on socket - ")
       + host + ":" + std::to_string(port);
 
   global_log.message(std::string("Bound socket on ") +
@@ -209,7 +215,7 @@ NetServer::~NetServer()
   close();
 }
 
-int local_accept(int sockfd, struct sockaddr * addr, socklen_t *addrlen)
+static int local_accept(int sockfd, struct sockaddr * addr, socklen_t *addrlen)
 {
   accept(sockfd, addr, addrlen);
 }
@@ -221,7 +227,7 @@ Net * NetServer::accept()
   socklen_t addr_size = sizeof(addr);
 
   // Accept the connection
-  if (sock = local_accept(lsock, (struct sockaddr *)&addr, &addr_size) == -1)
+  if ((sock = local_accept(lsock, (struct sockaddr *)&addr, &addr_size)) == -1)
     throw "Failed to accept connection";
 
   // Retrieve the remote info
@@ -244,11 +250,10 @@ Net * NetServer::accept()
                 addr_str, INET6_ADDRSTRLEN);
     }
 
-  Net * net = new Net(sock, std::string(addr_str), rport);
   global_log.message(std::string("Accepted connection from ") + addr_str +
                                  ":" + std::to_string(rport), Log::NOTICE);
 
-  return net;
+  return new Net(sock, std::string(addr_str), rport);
 }
 
 void NetServer::close()
@@ -264,7 +269,71 @@ NetClient::NetClient(const std::string & host, uint16_t port) :
   host(host), port(port)
 {}
 
+static int local_connect(int socket, const struct sockaddr * address,
+                         socklen_t address_len)
+{
+  connect(socket, address, address_len);
+}
+
 Net * NetClient::connect()
 {
-  return NULL;
+  int sock = -1;
+  struct addrinfo hints, *servinfo;
+  int ret;
+
+  // Allow our socket to bind to both IPv4/v6 on TCP
+  memset(&hints, 0, sizeof hints);
+  hints.ai_family = AF_UNSPEC;
+  hints.ai_socktype = SOCK_STREAM;
+
+  // Get all of the potential connection addresses
+  if ((ret = getaddrinfo(host.c_str(), std::to_string(port).c_str(),
+                         &hints, &servinfo)) != 0)
+    throw std::string("getaddrinfo: ") + gai_strerror(ret);
+
+  // Connect to the first possible address in the list
+  struct addrinfo *it;
+  for(it = servinfo; it != NULL; it = it->ai_next)
+    {
+      // Create the socket
+      if ((sock = socket(it->ai_family, it->ai_socktype,
+                           it->ai_protocol)) == -1)
+        continue;
+
+      if (local_connect(sock, it->ai_addr, it->ai_addrlen) == 0)
+        break;
+
+      local_close(sock);
+      sock = -1;
+    }
+
+  // No socket was connected
+  if (sock == -1)
+    {
+      freeaddrinfo(servinfo);
+      throw std::string("Failed to connect to ") +
+        host + ":" + std::to_string(port);
+    }
+
+  // Retrieve the remote info
+  char addr_str[INET6_ADDRSTRLEN];
+
+  // IPv4 Info
+  if (((struct sockaddr *)it->ai_addr)->sa_family == AF_INET)
+    inet_ntop(it->ai_family,
+              &(((struct sockaddr_in *)it->ai_addr)->sin_addr),
+              addr_str, INET6_ADDRSTRLEN);
+
+  // IPv6 Info
+  else
+    inet_ntop(it->ai_family,
+              &(((struct sockaddr_in6 *)it->ai_addr)->sin6_addr),
+              addr_str, INET6_ADDRSTRLEN);
+
+  freeaddrinfo(servinfo);
+
+  global_log.message(std::string("Connected to ") + addr_str +
+                     ":" + std::to_string(port), Log::NOTICE);
+
+  return new Net(sock, std::string(addr_str), port);
 }

@@ -19,9 +19,31 @@
   along with this program.  If not, see <http://www.gnu.org/licenses/>.
 */
 
-#include <stdlib.h>
+#include <cstdlib>
+#include <string>
+#include <iostream>
+#include "../src/net.hxx"
+#include "../src/log.hxx"
 
-int main(int argc, char ** argv)
+int main(int argc, char * argv[])
 {
+  global_log.add_output(&std::cerr);
+  global_log.set_level(3);
+  try
+    {
+      NetServer ns("localhost", 17654);
+      Net * net = ns.accept();
+      net->write("Hello World\n");
+    }
+  catch (const std::string & e)
+    {
+      std::cerr << e << std::endl;
+      return EXIT_FAILURE;
+    }
+  catch (const char * e)
+    {
+      std::cerr << e << std::endl;
+      return EXIT_FAILURE;
+    }
   return EXIT_SUCCESS;
 }
