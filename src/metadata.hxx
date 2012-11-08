@@ -31,6 +31,7 @@ class Metadata
 public:
   struct Data
   {
+    uint64_t size;
     uint64_t modified;
     bool deleted;
   };

@@ -22,8 +22,21 @@
 #ifndef __CONNECTOR_HXX__
 #define __CONNECTOR_HXX__
 
+#include <string>
+#include <istream>
+#include <fstream>
+#include "metadata.hxx"
+
 class Connector
 {
+public:
+  virtual Metadata * get_metadata() = 0;
+  virtual void push_file(const std::string & filename, uint64_t modified,
+                 std::istream & data, size_t data_size) = 0;
+  virtual void get_file(const std::string & filename, uint64_t & modified,
+                std::ostream & data) = 0;
+  virtual void delete_file(const std::string & filename,
+                           uint64_t & modified) = 0;
 };
 
 #endif

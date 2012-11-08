@@ -39,6 +39,13 @@
      First 8 bytes are the modification time of the file in seconds
      Next 8 bytes are the length of the file
      Next data is the file contents
+*** a 4 byte means delete the file
+**** Client
+     First 8 bytes are the modified time
+     Next 4 bytes are the filename's length
+     Rest of the data is the filename
+**** Server
+     Single byte return 0 for success 1 for failure
 ** Commands to the client
    Represented as a single byte similar to the version number, until more are needed
 *** a null byte signals the end of the connection

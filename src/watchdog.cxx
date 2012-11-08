@@ -115,12 +115,14 @@ Watchdog::Data Watchdog::wait()
 
       data.modified = stats.st_mtime;
       data.directory = S_ISDIR(stats.st_mode);
+      data.size = stats.st_size;
     }
   // Deleted File
   else
     {
       data.modified = time(NULL);
       data.directory = false;
+      data.size = 0;
     }
 
   return data;

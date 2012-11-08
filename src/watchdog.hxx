@@ -38,6 +38,7 @@ public:
     std::string filename;
     FileStatus status;
     uint64_t modified;
+    uint64_t size;
     bool directory;
   };
 

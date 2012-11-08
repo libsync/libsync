@@ -44,6 +44,7 @@ public:
                  std::istream & data, size_t data_size);
   void get_file(const std::string & filename, uint64_t & modified,
                 std::ostream & data);
+  void delete_file(const std::string & filename, uint64_t & modified);
 private:
   NetClient client;
   std::string user, pass;

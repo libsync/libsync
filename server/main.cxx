@@ -24,30 +24,86 @@
 #include <iostream>
 #include "../src/net.hxx"
 #include "../src/log.hxx"
+#include "../src/config.hxx"
+#include "../src/metadata.hxx"
 
 int main(int argc, char * argv[])
 {
-  global_log.add_output(&std::cerr);
-  global_log.set_level(3);
+  Config conf;
+  std::string conf_file("server.conf");
+  std::string store_dir;
+  bool daemonize = false;
+  NetServer * server = NULL;
+
+  // Catch errors in stderr until we have the log output setup
   try
     {
-      NetServer ns("localhost", 17654);
-      Net * net = ns.accept();
-      net->write("Hello World\n");
-      uint8_t s[16];
-      net->read(s, 16);
-      delete net;
-      std::cout << (char*)s << std::endl;
+      // Parse command line arguments
+      for (int i = 1; i < argc; i++)
+        {
+          std::string arg(argv[i]);
+          if (arg == "-d")
+            daemonize = true;
+          else if (arg == "-c" && i+1 < argc && argv[i+1][0] != '-')
+            {
+              conf_file = argv[i+1];
+              i++;
+            }
+          else
+            throw "sync-client [-d] [-c <config_file>]";
+        }
+
+      // Retrieve the Configuration File
+      conf.read(conf_file);
+
+      // Setup the Global Log
+      if (!daemonize)
+        global_log.add_output(&std::cout);
+      if (conf.exists("log_file"))
+        global_log.add_output(conf.get_str("log_file"));
+      if (conf.exists("log_level"))
+        global_log.set_level(conf.get_int("log_level"));
+      else
+        global_log.set_level(Log::NOTICE);
     }
-  catch (const std::string & e)
+  catch(const char * e)
     {
       std::cerr << e << std::endl;
       return EXIT_FAILURE;
     }
-  catch (const char * e)
+  catch(const std::string & e)
     {
       std::cerr << e << std::endl;
       return EXIT_FAILURE;
     }
+
+  // Catch errors to the log output
+  try
+    {
+      // Attempt to create the bind server specified in the config
+      if (!conf.exists("bind_host") || !conf.exists("bind_port"))
+        throw "Requires a port and host to bind on";
+      server = new NetServer(conf.get_str("bind_host"),
+                           conf.get_int("bind_port"));
+
+      global_log.message("Successfully started!", Log::NOTICE);
+
+      // Accept all client connections and spawn a thread for each
+    }
+  catch(const char * e)
+    {
+      global_log.message(e, 1);
+      delete server;
+      return EXIT_FAILURE;
+    }
+  catch(const std::string & e)
+    {
+      global_log.message(e, 1);
+      delete server;
+      return EXIT_FAILURE;
+    }
+
+  delete server;
+
   return EXIT_SUCCESS;
 }

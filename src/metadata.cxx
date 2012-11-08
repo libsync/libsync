@@ -124,6 +124,7 @@ void Metadata::build(const std::string & rootpath, const std::string & path)
         Data d;
         d.modified = stats.st_mtime;
         d.deleted = false;
+        d.size = stats.st_size;
         files[path + entry->d_name] = d;
       }
 

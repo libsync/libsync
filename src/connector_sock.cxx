@@ -33,6 +33,7 @@
 #define CMD_META 1
 #define CMD_PUSH 2
 #define CMD_PULL 3
+#define CMD_DEL 4
 
 #define BUFF 2048
 
@@ -115,6 +116,19 @@ void SockConnector::get_file(const std::string & filename, uint64_t & modified,
       data.write((char *)buff, read);
       data_len -= read;
     }
+}
+
+void SockConnector::delete_file(const std::string & filename,
+                                uint64_t & modified)
+{
+  // Send the command info
+  net->write8(CMD_DEL);
+  net->write64(modified);
+  net->write32(filename.length());
+  net->write(filename);
+
+  if (net->read8() != 0)
+    throw "Server failed to delete file";
 }
 
 void SockConnector::connect(bool reg)
