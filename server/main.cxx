@@ -132,11 +132,40 @@ bool exec_command(const std::string & user_dir, Net * net, Metadata * mtd)
       mtd->modify_file(std::string((char *)filename), modified);
 
       net->write8(0);
+      global_log.message(std::string("Pushed file ") + (char *)filename, 3);
     }
   else if (cmd == CMD_PULL)
     {
+      // Get the client filename
       uint32_t filename_len = net->read32();
-      uint8_t filename[filename_len];
+      uint8_t filename[filename_len+1];
+      net->read_all(filename, filename_len);
+      filename[filename_len] = 0;
+
+      // Get metadata or write 0 on failure
+      struct stat stats;
+      if (stat((user_dir + (char*)filename).c_str(), &stats) < 0)
+        {
+          global_log.message(std::string("Invalid Pull ") +
+                             (char *)filename, 3);
+          net->write64(0);
+          net->write64(0);
+        }
+
+      // Write the metadata
+      net->write64(stats.st_mtime);
+      net->write64(stats.st_size);
+
+      // Write the file
+      std::ifstream fin((user_dir + (char *)filename).c_str(),
+                       std::ios::in | std::ios::binary);
+      uint8_t * bin = new uint8_t[stats.st_size];
+      fin.read((char*)bin, stats.st_size);
+      fin.close();
+      net->write(bin, stats.st_size);
+      delete bin;
+
+      global_log.message(std::string("Pulled file ") + (char*)filename, 3);
     }
   else if (cmd == CMD_DEL)
     {
@@ -147,6 +176,7 @@ bool exec_command(const std::string & user_dir, Net * net, Metadata * mtd)
 
       mtd->delete_file(std::string((char*)filename), modified);
       net->write8(0);
+      global_log.message(std::string("Deleted file ") + (char*)filename, 3);
     }
   else
     throw "Invalid command from client";
