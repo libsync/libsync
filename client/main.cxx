@@ -158,7 +158,6 @@ int main(int argc, char * argv[])
           if (data.status == Watchdog::FileStatus::modified)
             {
               meta->modify_file(data.filename, data.modified);
-              std::cout <<  data.filename << std::endl;
               std::ifstream file((sync_dir + data.filename).c_str(),
                                  std::ios::in | std::ios::binary);
               conn->push_file(data.filename, data.modified, file, data.size);

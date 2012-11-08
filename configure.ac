@@ -53,7 +53,7 @@ DX_RTF_FEATURE(OFF)
 DX_XML_FEATURE(OFF)
 DX_PDF_FEATURE(OFF)
 DX_PS_FEATURE(OFF)
-DX_INIT_DOXYGEN(libsync, doxygen.conf, doc)
+DX_INIT_DOXYGEN(., doxygen.conf, doc)
 
 AC_CONFIG_FILES([
  Makefile
