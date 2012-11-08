@@ -94,7 +94,7 @@ bool handshake(Net * net)
 
 #define BUFF 2048
 
-bool exec_command(Net * net, Metadata * mtd)
+bool exec_command(const std::string & user_dir, Net * net, Metadata * mtd)
 {
   uint8_t cmd = net->read8();
   if (cmd == CMD_QUIT)
@@ -109,9 +109,34 @@ bool exec_command(Net * net, Metadata * mtd)
     }
   else if (cmd == CMD_PUSH)
     {
+      // Read in the metadata
+      uint64_t modified = net->read64();
+      uint32_t filename_len = net->read32();
+      uint64_t file_len = net->read64();
+
+      // Read the filename
+      uint8_t filename[filename_len+1];
+      net->read_all(filename, filename_len);
+      filename[filename_len] = 0;
+
+      // Read all of the file contents and push to file
+      uint8_t * file = new uint8_t[file_len];
+      net->read_all(file, file_len);
+      std::ofstream out(user_dir + (char *)filename,
+                        std::ios::out | std::ios::binary);
+      out.write((char *)file, file_len);
+      out.close();
+      delete file;
+
+      // Update Metadata
+      mtd->modify_file(std::string((char *)filename), modified);
+
+      net->write8(0);
     }
   else if (cmd == CMD_PULL)
     {
+      uint32_t filename_len = net->read32();
+      uint8_t filename[filename_len];
     }
   else if (cmd == CMD_DEL)
     {
@@ -162,7 +187,7 @@ void client(std::string store_dir, Net * net)
         }
 
       while (true)
-        if(exec_command(net, &mtd))
+        if(exec_command(store_dir + "/william/", net, &mtd))
           break;
         else
           {
