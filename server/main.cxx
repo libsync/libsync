@@ -21,11 +21,73 @@
 
 #include <cstdlib>
 #include <string>
+#include <cstdint>
+#include <cstring>
 #include <iostream>
+#include <fstream>
+#include <thread>
+
 #include "../src/net.hxx"
 #include "../src/log.hxx"
 #include "../src/config.hxx"
 #include "../src/metadata.hxx"
+
+#define LOGIN_INV 1
+
+bool handshake(Net * net)
+{
+  // Send the version
+  net->write8(0);
+
+  // Wait for the login
+  size_t user_len = (size_t)net->read16();
+  std::cout << "Read User Len" << std::endl;
+  uint8_t * user = new uint8_t[user_len+1];
+  net->read_all(user, user_len);
+  std::cout << "Read Username" << std::endl;
+  user[user_len] = 0;
+
+  size_t pass_len = (size_t)net->read16();
+  uint8_t * pass = new uint8_t[pass_len+1];
+  net->read_all(pass, pass_len);
+  pass[pass_len] = 0;
+
+  // Check the login
+  if (strcmp("william", (char*)user) != 0 ||
+      strcmp("williamisawesome", (char*)pass) != 0)
+    {
+      global_log.message("Failed to authenticate client", Log::NOTICE);
+      net->write8(LOGIN_INV);
+      return false;
+    }
+  net->write8(0);
+
+  global_log.message("william authenticated successfully", Log::NOTICE);
+  return true;
+}
+
+void client(Net * net)
+{
+  try
+    {
+      if (!handshake(net))
+        {
+          delete net;
+          return;
+        }
+      while (true)
+        {
+        }
+    }
+  catch(const std::string & e)
+    {
+      std::cout << "Client Failed:" << e << std::endl;
+    }
+  catch(const char * e)
+    {
+      std::cout << "Client Failed: " << e << std::endl;
+    }
+}
 
 int main(int argc, char * argv[])
 {
@@ -89,6 +151,12 @@ int main(int argc, char * argv[])
       global_log.message("Successfully started!", Log::NOTICE);
 
       // Accept all client connections and spawn a thread for each
+      while (true)
+        {
+          Net * net = server->accept();
+          std::thread c_thread(client, net);
+          c_thread.detach();
+        }
     }
   catch(const char * e)
     {
