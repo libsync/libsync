@@ -102,6 +102,10 @@ bool exec_command(Net * net, Metadata * mtd)
 
   else if (cmd == CMD_META)
     {
+      size_t size;
+      uint8_t * data = mtd->serialize(size);
+      net->write32(size);
+      net->write(data, size);
     }
   else if (cmd == CMD_PUSH)
     {
@@ -111,6 +115,13 @@ bool exec_command(Net * net, Metadata * mtd)
     }
   else if (cmd == CMD_DEL)
     {
+      uint64_t modified = net->read64();
+      uint32_t filename_len = net->read32();
+      uint8_t filename[filename_len];
+      net->read_all(filename, filename_len);
+
+      mtd->delete_file(std::string((char*)filename), modified);
+      net->write8(0);
     }
   else
     throw "Invalid command from client";
