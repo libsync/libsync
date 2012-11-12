@@ -19,7 +19,7 @@ AUTOMAKE_OPTIONS = subdir-objects
 ACLOCAL_AMFLAGS = -I ../m4
 
 bin_PROGRAMS = sync-server
-sync_server_SOURCES = main.cxx
+sync_server_SOURCES = main.cxx server.cxx user.cxx
 sync_server_LDADD = ../src/libsync.la
 
 #TEST SECTION
