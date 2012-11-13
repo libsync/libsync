@@ -28,6 +28,7 @@
 #include <dirent.h>
 
 #include "watchdog.hxx"
+#include "log.hxx"
 
 #define IN_ATTR IN_ATTRIB | IN_CLOSE_WRITE | IN_CREATE | \
   IN_DELETE | IN_MODIFY | IN_MOVE
@@ -124,6 +125,8 @@ Watchdog::Data Watchdog::wait()
       data.directory = false;
       data.size = 0;
     }
+
+  global_log.message("Change event" + event->wd, 3);
 
   return data;
 }
