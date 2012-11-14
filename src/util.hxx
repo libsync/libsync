@@ -1,5 +1,5 @@
 /*
-  Synchronized message buffer
+  Useful IO and Datastructure Utilities
 
   Copyright (C) 2012 William A. Kennington III
 
@@ -19,32 +19,29 @@
   along with this program.  If not, see <http://www.gnu.org/licenses/>.
 */
 
-#include "messages.hxx"
+#ifndef __UTIL_HXX__
+#define __UTIL_HXX__
 
-template <typename Type, typename Data>
-void Messages<Type, Data>::push(Type type, Data data)
-{
-  lock.lock();
-  messages.push_back(std::pair<Type, Data>(type, data));
-  cond.notify_all();
-  lock.unlock();
-}
+#include <cstdint>
+#include <cstring>
 
-template <typename Type, typename Data>
-Data Messages<Type, Data>::wait(Type type)
+#if defined(__linux__)
+#  include <endian.h>
+#elif defined(__FreeBSD__) || defined(__NetBSD__)
+#  include <sys/endian.h>
+#elif defined(__OpenBSD__)
+#  include <sys/types.h>
+#  define be16toh(x) betoh16(x)
+#  define be32toh(x) betoh32(x)
+#  define be64toh(x) betoh64(x)
+#endif
+
+namespace Read
 {
-  lock.lock();
-  while(true)
-    {
-      for (auto it = messages.begin(), end = messages.end; it != end; it++)
-        if (it->first == type)
-          {
-            Data data = it->second;
-            messages.erase(it);
-            lock.unlock();
-            return data;
-          }
-      cond.wait(lock);
-    }
-  lock.unlock();
-}
+  uint8_t i8(uint8_t * & data, size_t & size);
+  uint16_t i16(uint8_t * & data, size_t & size);
+  uint32_t i32(uint8_t * & data, size_t & size);
+  uint64_t i64(uint8_t * & data, size_t & size);
+};
+
+#endif

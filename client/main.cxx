@@ -20,21 +20,32 @@
 */
 
 #include <cstdlib>
+#include <cstring>
 #include <thread>
 #include <iostream>
 #include <fstream>
+#include <signal.h>
+#include <unistd.h>
+#include <mutex>
 
 #include "../src/log.hxx"
 #include "../src/config.hxx"
 #include "../src/client.hxx"
 
 Client *client;
+std::mutex *endlock;
+
+void quit(int signal)
+{
+  endlock->unlock();
+}
 
 int main(int argc, char * argv[])
 {
   Config conf;
   std::string conf_file("client.conf");
   bool daemonize = false;
+  struct sigaction quitact;
 
   // Catch errors in stderr until we have the log output setup
   try
@@ -78,8 +89,24 @@ int main(int argc, char * argv[])
       return EXIT_FAILURE;
     }
 
-  client = new Client(config);
-  delete client;
+  // Setup the lock which prevents the application from terminating
+  endlock = new std::mutex;
+  endlock->lock();
 
+  // Initialize the client for filesystem changes
+  //client = new Client(conf);
+  client = NULL;
+
+  // Setup the action handler for clean quitting
+  memset(&quitact, 0, sizeof(quitact));
+  quitact.sa_handler = quit;
+  sigaction(SIGINT, &quitact, NULL);
+  sigaction(SIGQUIT, &quitact, NULL);
+
+  // Hold the main thread until it is killed
+  endlock->lock();
+  delete endlock;
+
+  delete client;
   return EXIT_SUCCESS;
 }

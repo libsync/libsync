@@ -22,6 +22,9 @@
 #ifndef __CLIENT_HXX__
 #define __CLIENT_HXX__
 
+#include <string>
+#include <thread>
+
 #include "connector_sock.hxx"
 #include "watchdog.hxx"
 #include "metadata.hxx"
@@ -32,6 +35,11 @@
 class Client
 {
 public:
+  /**
+   * Creates a new instance of the client which sets up file synchronization
+   * It spawns all of the threads necessary to perform config based sync
+   * @param conf The configuration file for the Client
+   */
   Client(const Config & conf);
   ~Client();
 private:
@@ -42,11 +50,31 @@ private:
   {
   };
 
+  std::string sync_dir;
   Config conf;
   Connector *conn;
   Messages<MsgType, Msg> messages;
-  Metadata meta;
+  Metadata *meta;
+  Watchdog wd;
 
+  std::thread *file_thread, *pull_thread, *watch_thread;
+
+  /**
+   * Recursively deletes the file and all of its directories up to sync dir
+   * @param filename The name of the file or directory to remove recursively
+   */
+  void recursive_remove(const std::string & filename) const;
+
+  /**
+   * Recursively creates the directories from sync dir to the file
+   * @param filename The name of the file to create
+   */
+  void recursive_create(const std::string & filename) const;
+
+  /**
+   * Merges the current metadata with another, and pushes change messages
+   * @param remote The remote metadata to sync locally
+   */
   void merge_metadata(const Metadata & remote);
 
   void file_master();

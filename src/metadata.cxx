@@ -29,44 +29,7 @@
 
 #include "net.hxx"
 #include "metadata.hxx"
-
-static uint8_t read8(uint8_t * & data, size_t & size)
-{
-  if (size < 1)
-    throw "Metadata object too small to deserialize";
-  size--;
-  return *(data++);
-}
-
-static uint16_t read16(uint8_t * & data, size_t & size)
-{
-  if (size < 2)
-    throw "Metadata object too small to deserialize";
-  size -= 2;
-  uint16_t out = *((uint16_t*)data);
-  data += 2;
-  return be16toh(out);
-}
-
-static uint32_t read32(uint8_t * & data, size_t & size)
-{
-  if (size < 4)
-    throw "Metadata object too small to deserialize";
-  size -= 4;
-  uint32_t out = *((uint32_t*)data);
-  data += 4;
-  return be32toh(out);
-}
-
-static uint64_t read64(uint8_t * & data, size_t & size)
-{
-  if (size < 8)
-    throw "Metadata object too small to deserialize";
-  size -= 8;
-  uint64_t out = *((uint64_t*)data);
-  data += 8;
-  return be64toh(out);
-}
+#include "util.hxx"
 
 Metadata::Metadata()
 {}
@@ -75,12 +38,12 @@ Metadata::Metadata()
 Metadata::Metadata(uint8_t * data, size_t size)
 {
   // Get the size of the map
-  size_t count = read64(data, size);
+  size_t count = Read::i64(data, size);
 
   while(count > 0)
     {
       // Get the filename
-      size_t len = read64(data, size);
+      size_t len = Read::i64(data, size);
       if (size <= len)
         throw "Metadata object too small to deserialize";
       std::string filename;
@@ -90,8 +53,8 @@ Metadata::Metadata(uint8_t * data, size_t size)
 
       // Get the modified and deleted
       Data d;
-      d.modified = read64(data, size);
-      d.deleted = read8(data, size);
+      d.modified = Read::i64(data, size);
+      d.deleted = Read::i8(data, size);
 
       // Append the file to the metadata
       files[filename] = d;

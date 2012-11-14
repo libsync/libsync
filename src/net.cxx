@@ -28,8 +28,10 @@
 #include <netinet/in.h>
 #include <netdb.h>
 #include <arpa/inet.h>
+
 #include "net.hxx"
 #include "log.hxx"
+#include "util.hxx"
 
 Net::Net(int sock, const std::string & host, uint16_t port) :
   sock(sock), closed(false), host(host), port(port)

@@ -19,20 +19,26 @@
   along with this program.  If not, see <http://www.gnu.org/licenses/>.
 */
 
+#include <iostream>
+#include <fstream>
+
 #include "client.hxx"
 #include "log.hxx"
 
 Client::Client(const Config & conf)
-  : conf(conf)
+  : conf(conf), conn(NULL), meta(NULL), file_thread(NULL),
+    pull_thread(NULL), watch_thread(NULL)
 {
-  std::string sync_dir;
-  Connector * conn = NULL;
-  Watchdog wd;
-  Metadata * meta = NULL;
+  Metadata *remote = NULL;
 
-  // Catch errors to the log output
   try
     {
+      // Load the local metadata from the sync directory
+      if (!conf.exists("sync_dir"))
+        throw "Client must specify synchronization directory";
+      sync_dir = conf.get_str("sync_dir");
+      meta = new Metadata(sync_dir);
+
       // Attempt to create the connection type specified in the config
       if (!conf.exists("conn") || conf.get_str("conn") == "sock")
         if (!conf.exists("conn_host") || !conf.exists("conn_port") ||
@@ -46,45 +52,21 @@ Client::Client(const Config & conf)
       else
         throw "Unrecognized connector type - " + conf.get_str("conn");
 
-      // Try Opening a Watchdog on the watch folder
-      if (!conf.exists("sync_dir"))
-        throw "Client must specify synchronization directory";
-      sync_dir = conf.get_str("sync_dir");
-      wd.add_watch(sync_dir);
+      // Spawn the threads for handling server transactions
 
-      // Try Getting Metadata
-      meta = conn->get_metadata();
+      // Get the remote metadata and perform a merge with local metadata
+      remote = conn->get_metadata();
+      merge_metadata(*remote);
 
-      // Compare the received metadata
-      Metadata local_md(sync_dir);
-      for (auto it = meta->begin(); it != meta->end(); it++)
-        {
-          Metadata::Data local = local_md.get_file(it->first);
-          std::string filename = sync_dir + it->first;
-          if (it->second.modified > local.modified)
-            if(it->second.deleted)
-              remove(filename.c_str());
-            else
-              {
-                std::ofstream file(filename.c_str(),
-                                   std::ios::out | std::ios::binary);
-                conn->get_file(it->first, local.modified, file);
-                file.close();
-              }
-          else if (it->second.modified < local.modified)
-            {
-              std::ifstream file(filename.c_str(),
-                                 std::ios::in | std::ios::binary);
-              conn->push_file(it->first, local.modified, file, local.size);
-              file.close();
-            }
-        }
+      // Spawn the watchdog
+      // Spawn the file and metadata manager
     }
   catch(const char * e)
     {
       global_log.message(e, 1);
       delete meta;
       delete conn;
+      delete remote;
       throw e;
     }
   catch(const std::string & e)
@@ -92,11 +74,74 @@ Client::Client(const Config & conf)
       global_log.message(e, 1);
       delete meta;
       delete conn;
+      delete remote;
       throw e;
     }
+  delete remote;
 
-  global_log.message("Successfully started!", Log::NOTICE);
+  global_log.message("Client successfully started!", Log::NOTICE);
+}
 
+Client::~Client()
+{
+  delete file_thread;
+  delete pull_thread;
+  delete watch_thread;
+  delete meta;
+  delete conn;
+}
+
+void Client::recursive_remove(const std::string & filename) const
+{
+}
+
+void Client::recursive_create(const std::string & filename) const
+{
+}
+
+void Client::merge_metadata(const Metadata & remote)
+{
+  // Merge all of the local data into the remote data and push messages
+  for (auto it = meta->begin(); it != meta->end(); it++)
+    {
+      Metadata::Data local = remote.get_file(it->first);
+      std::string filename = sync_dir + it->first;
+      if (it->second.modified > local.modified)
+        if(it->second.deleted)
+          recursive_remove(it->first);
+        else
+          {
+            std::ofstream file(filename.c_str(),
+                               std::ios::out | std::ios::binary);
+            conn->get_file(it->first, local.modified, file);
+            file.close();
+          }
+      else if (it->second.modified < local.modified)
+        {
+          std::ifstream file(filename.c_str(),
+                             std::ios::in | std::ios::binary);
+          conn->push_file(it->first, local.modified, file, local.size);
+          file.close();
+        }
+    }
+
+  // Merge the remote data into the local data and pull messages
+  for (auto it = remote.begin(), end = remote.end(); it != end; it++)
+    {
+      Metadata::Data local =  meta->get_file(it->first);
+    }
+}
+
+void Client::file_master()
+{
+}
+
+void Client::pull_master()
+{
+}
+
+void Client::watch_master()
+{
   while(true)
     {
       try
@@ -126,28 +171,11 @@ Client::Client(const Config & conf)
           global_log.message(e, 1);
         }
     }
+  // Retrieve the first event
 
-  delete meta;
-  delete conn;
-}
+  // Wait to ensure we have no duplicates
 
-Client::~Client()
-{
-  delete conn;
-}
+  // Remove the duplicate events
 
-void Client::merge_metadata(const Metadata & remote)
-{
-}
-
-void Client::file_master()
-{
-}
-
-void Client::pull_master()
-{
-}
-
-void Client::watch_master()
-{
+  // Send the events to the file thread
 }
