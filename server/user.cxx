@@ -33,12 +33,16 @@ User::User(const std::string & save_dir)
 {
   try
     {
-      open(save_dir + "login.mtd");
+      open(save_dir + "/login.mtd");
     }
   catch (const std::string & e)
-    {}
+    {
+      next_id = 0;
+    }
   catch (const char * e)
-    {}
+    {
+      next_id = 0;
+    }
 }
 
 std::string User::login(const std::string & user, const std::string & pass)
@@ -62,7 +66,7 @@ std::string User::login(const std::string & user, const std::string & pass)
 
   lock.unlock();
 
-  return save_dir + std::to_string(d.id);
+  return save_dir + "/" + std::to_string(d.id);
 }
 
 std::string User::reg(const std::string & user, const std::string & pass)
@@ -81,10 +85,11 @@ std::string User::reg(const std::string & user, const std::string & pass)
   d.pass = pass;
 
   info[user] = d;
+  save(save_dir + "/login.mtd");
 
   lock.unlock();
 
-  return save_dir + std::to_string(d.id);
+  return save_dir + "/" +  std::to_string(d.id);
 }
 
 void User::open(const std::string & filename)
@@ -118,7 +123,7 @@ void User::open(const std::string & filename)
 
       // Get the username
       size_t len = Read::i64(data, size);
-      if (size <= len)
+      if (size < len)
         throw "Not enough data to deserialize login";
       std::string user;
       user.append((char*)data, len);
@@ -130,7 +135,7 @@ void User::open(const std::string & filename)
       d.id = id;
 
       len = Read::i64(data, size);
-      if (size <= len)
+      if (size < len)
         throw "Not enough data to deserialize login";
       d.pass.append((char*)data, len);
       data += len;
@@ -176,6 +181,6 @@ void User::save(const std::string & filename)
   std::ofstream file(filename, std::ios::out | std::ios::binary);
   if (file.fail())
     throw std::string("Failed to write user data to: ") + filename;
-  file << out;
+  file.write(out.data(), out.length());
   file.close();
 }

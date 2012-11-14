@@ -32,12 +32,14 @@
 #include "../src/log.hxx"
 #include "../src/config.hxx"
 #include "../src/metadata.hxx"
+#include "user.hxx"
 
 #define LOGIN_INV 1
 
 #define HAND_LOGIN 0
 #define HAND_REG   1
 
+#define REG_INV 1
 #define REG_CLOSED 2
 
 uint64_t filesize(const std::string & path)
@@ -48,42 +50,61 @@ uint64_t filesize(const std::string & path)
   return (uint64_t)stats.st_size;
 }
 
-bool handshake(Net * net)
+std::string handshake(Net * net, User * user)
 {
   // Send the version
   net->write8(0);
 
   // Check the command
   uint8_t cmd = net->read8();
-  if (cmd == HAND_REG)
-    {
-      net->write8(REG_CLOSED);
-      return false;
-    }
 
-  // Wait for the login
+  // Grab the login data
   size_t user_len = (size_t)net->read16();
-  uint8_t * user = new uint8_t[user_len+1];
-  net->read_all(user, user_len);
-  user[user_len] = 0;
+  uint8_t * uusername = new uint8_t[user_len+1];
+  net->read_all(uusername, user_len);
+  std::string username((char*)uusername, user_len);
+  delete uusername;
 
   size_t pass_len = (size_t)net->read16();
-  uint8_t * pass = new uint8_t[pass_len+1];
-  net->read_all(pass, pass_len);
-  pass[pass_len] = 0;
+  uint8_t * upass = new uint8_t[pass_len];
+  net->read_all(upass, pass_len);
+  std::string pass((char*)upass, pass_len);
+  delete upass;
 
   // Check the login
-  if (strcmp("william", (char*)user) != 0 ||
-      strcmp("iamwilliam", (char*)pass) != 0)
-    {
-      global_log.message("Failed to authenticate client", Log::NOTICE);
-      net->write8(LOGIN_INV);
-      return false;
-    }
-  net->write8(0);
+  std::string dir;
+  if (cmd == HAND_LOGIN)
+    try
+      {
+        dir = user->login(username, pass);
+        net->write8(0);
+      }
+    catch(const char * e)
+      {
+        try
+          {
+            dir = user->reg(username, pass);
+            net->write8(0);
+          }
+        catch(const char * e)
+          {
+            net->write8(LOGIN_INV);
+            throw std::string("Failed to authenticate ") + username;
+          }
+      }
+  else
+    try
+      {
+        dir = user->reg(username, pass);
+      }
+    catch(const char * e)
+      {
+        net->write8(REG_INV);
+        throw std::string("Failed to register ") + username;
+      }
 
-  global_log.message("william authenticated successfully", Log::NOTICE);
-  return true;
+  global_log.message(username + " authenticated successfully", Log::NOTICE);
+  return dir;
 }
 
 #define CMD_QUIT 0
@@ -184,22 +205,23 @@ bool exec_command(const std::string & user_dir, Net * net, Metadata * mtd)
   return false;
 }
 
-void client(std::string store_dir, Net * net)
+void client(std::string store_dir, Net * net, User * user)
 {
   try
     {
-      if (!handshake(net))
-        {
-          delete net;
-          return;
-        }
+      std::string user_dir = handshake(net, user);
+
+      // Make sure the directory exists
+      global_log.message(user_dir, Log::NOTICE);
+      mkdir(user_dir.c_str(), 0755);
 
       // Extract the metadata contents
-      std::string mtd_name = store_dir + "/william.mtd";
+      std::string mtd_name = user_dir + ".mtd";
       uint64_t mtd_size;
       uint8_t * mtd_buff;
       bool mtd_exists = false;
       Metadata mtd;
+
       try
         {
           mtd_size = filesize(mtd_name);
@@ -217,7 +239,7 @@ void client(std::string store_dir, Net * net)
         }
 
       while (true)
-        if(exec_command(store_dir + "/william/", net, &mtd))
+        if(exec_command(user_dir + "/", net, &mtd))
           break;
         else
           {
@@ -246,6 +268,7 @@ int main(int argc, char * argv[])
   std::string store_dir;
   bool daemonize = false;
   NetServer * server = NULL;
+  User * user = NULL;
 
   // Catch errors in stderr until we have the log output setup
   try
@@ -305,11 +328,14 @@ int main(int argc, char * argv[])
 
       global_log.message("Successfully started!", Log::NOTICE);
 
+      // Setup the user login credentials
+      user = new User(store_dir);
+
       // Accept all client connections and spawn a thread for each
       while (true)
         {
           Net * net = server->accept();
-          std::thread c_thread(client, store_dir, net);
+          std::thread c_thread(client, store_dir, net, user);
           c_thread.detach();
         }
     }

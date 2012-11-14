@@ -94,8 +94,24 @@ int main(int argc, char * argv[])
   endlock->lock();
 
   // Initialize the client for filesystem changes
-  //client = new Client(conf);
-  client = NULL;
+  try
+    {
+      client = new Client(conf);
+    }
+  catch(const char * e)
+    {
+      global_log.message(e, Log::ERROR);
+      endlock->unlock();
+      delete endlock;
+      return EXIT_FAILURE;
+    }
+  catch(const std::string & e)
+    {
+      global_log.message(e, Log::ERROR);
+      endlock->unlock();
+      delete endlock;
+      return EXIT_FAILURE;
+    }
 
   // Setup the action handler for clean quitting
   memset(&quitact, 0, sizeof(quitact));

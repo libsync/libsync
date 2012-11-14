@@ -44,7 +44,7 @@ Metadata::Metadata(uint8_t * data, size_t size)
     {
       // Get the filename
       size_t len = Read::i64(data, size);
-      if (size <= len)
+      if (size < len)
         throw "Metadata object too small to deserialize";
       std::string filename;
       filename.append((char*)data, len);

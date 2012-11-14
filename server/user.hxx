@@ -60,6 +60,7 @@ private:
     uint64_t id;
     std::string pass;
   };
+
   std::string save_dir;
   std::mutex lock;
   std::unordered_map<std::string, Data> info;
