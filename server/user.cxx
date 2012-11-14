@@ -46,18 +46,45 @@ std::string User::login(const std::string & user, const std::string & pass)
   lock.lock();
 
   // Check if the user exists
+  if (info.count(user) < 1)
+    {
+      lock.unlock();
+      throw "The user doesn't exists";
+    }
 
   // Check if the password matches
-
-  // Return the directory
+  Data d = info[user];
+  if (d.pass != pass)
+    {
+      lock.unlock();
+      throw "The password is not valid for that user";
+    }
 
   lock.unlock();
+
+  return save_dir + std::to_string(d.id);
 }
 
 std::string User::reg(const std::string & user, const std::string & pass)
 {
   lock.lock();
+
+  // Make sure the user doesn't exist
+  if (info.count(user) > 0)
+    {
+      lock.unlock();
+      throw "User already exists";
+    }
+
+  Data d;
+  d.id = next_id++;
+  d.pass = pass;
+
+  info[user] = d;
+
   lock.unlock();
+
+  return save_dir + std::to_string(d.id);
 }
 
 void User::open(const std::string & filename)
@@ -66,6 +93,7 @@ void User::open(const std::string & filename)
   ssize_t red;
   std::string input;
   uint8_t * data;
+  size_t size;
 
   // Try reading the file
   std::ifstream file(filename, std::ios::in | std::ios::binary);
@@ -73,8 +101,9 @@ void User::open(const std::string & filename)
     throw std::string("Failed to read user data from: ") + filename;
   while((red = file.readsome(buff, BUFF)) > 0)
     input.append(buff, red);
-  file.close;
+  file.close();
   data = (uint8_t*)input.data();
+  size = input.length();
 
   // Get the next id
   next_id = Read::i64(data, size);
@@ -84,22 +113,31 @@ void User::open(const std::string & filename)
 
   while(count > 0)
     {
-      // Get the filename
+      // Get the id
+      uint64_t id = Read::i64(data, size);
+
+      // Get the username
       size_t len = Read::i64(data, size);
       if (size <= len)
-        throw "Metadata object too small to deserialize";
-      std::string filename;
-      filename.append((char*)data, len);
+        throw "Not enough data to deserialize login";
+      std::string user;
+      user.append((char*)data, len);
       data += len;
       size -= len;
 
-      // Get the modified and deleted
+      // Get the rest of the data
       Data d;
-      d.modified = Read::i64(data, size);
-      d.deleted = Read::i8(data, size);
+      d.id = id;
 
-      // Append the file to the metadata
-      files[filename] = d;
+      len = Read::i64(data, size);
+      if (size <= len)
+        throw "Not enough data to deserialize login";
+      d.pass.append((char*)data, len);
+      data += len;
+      size -= len;
+
+      // Append the user data
+      info[user] = d;
 
       count--;
     }

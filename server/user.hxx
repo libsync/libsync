@@ -43,7 +43,7 @@ public:
    * @return The data directory prefix of the user
    * @throws An exception if the user credentials are invalid
    */
-  std::string login(const std::string & user, const std::string pass);
+  std::string login(const std::string & user, const std::string & pass);
 
   /**
    * Registers the user with the server
@@ -52,7 +52,7 @@ public:
    * @return The data directory prefix of the user
    * @throws An exception if the user already exists
    */
-  std::string reg(const std::string & user, const std::string pass);
+  std::string reg(const std::string & user, const std::string & pass);
 
 private:
   struct Data
