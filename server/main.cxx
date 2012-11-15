@@ -28,6 +28,7 @@
 #include <thread>
 #include <mutex>
 #include <unordered_map>
+#include <unordered_set>
 #include <sys/stat.h>
 
 #include "../src/net.hxx"
@@ -50,7 +51,7 @@ struct UserData
 {
   Metadata *mtd;
   std::mutex lock;
-  uint64_t handles;
+  std::unordered_set<NetMsg *> handles;
 };
 
 std::unordered_map<std::string, UserData*> udata;
@@ -129,94 +130,155 @@ std::string handshake(Net * net, User * user)
 
 #define BUFF 2048
 
-bool exec_command(const std::string & user_dir, Net * net, Metadata * mtd)
+void exec_command(const std::string & user_dir, Message * msg,
+                  NetMsg * netmsg, UserData * data)
 {
-  uint8_t cmd = net->read8();
-  if (cmd == CMD_QUIT)
-    return true;
+  uint8_t *ret = (uint8_t*)msg->get().data(), cmd;
+  size_t ret_len = msg->get().length();
+  cmd = Read::i8(ret, ret_len);
 
-  else if (cmd == CMD_META)
+  if (cmd == CMD_META)
     {
       size_t size;
-      uint8_t * data = mtd->serialize(size);
-      net->write32(size);
-      net->write(data, size);
+      uint8_t * dat = data->mtd->serialize(size);
+      std::string sdat((char*)dat, size);
+      msg->set(sdat);
+      netmsg->reply_only(msg);
     }
   else if (cmd == CMD_PUSH)
     {
       // Read in the metadata
-      uint64_t modified = net->read64();
-      uint32_t filename_len = net->read32();
-      uint64_t file_len = net->read64();
+      uint64_t modified = Read::i64(ret, ret_len);
+      uint32_t filename_len = Read::i32(ret, ret_len);
+      std::string filename((char*)ret, filename_len);
+      ret += filename_len;
+      ret_len -= filename_len;
 
-      // Read the filename
-      uint8_t filename[filename_len+1];
-      net->read_all(filename, filename_len);
-      filename[filename_len] = 0;
+      // If the metadata has changed kill it
+      std::string cmd;
+      if (data->mtd->get_file(filename).modified >= modified)
+        {
+          Write::i8(1, cmd);
+          msg->set(cmd);
+          netmsg->reply_only(msg);
+        }
 
       // Read all of the file contents and push to file
-      uint8_t * file = new uint8_t[file_len];
-      net->read_all(file, file_len);
-      std::ofstream out(user_dir + (char *)filename,
+      std::ofstream out(user_dir + filename,
                         std::ios::out | std::ios::binary);
-      out.write((char *)file, file_len);
+      Write::i8(0, cmd);
+      msg->set(cmd);
+      netmsg->reply_and_wait(msg, &out);
       out.close();
-      delete file;
+
+      // Acknowledge successful transfer
+      msg->set(cmd);
+      netmsg->reply_only(msg);
 
       // Update Metadata
-      mtd->modify_file(std::string((char *)filename), modified);
+      struct stat stats;
+      stat((user_dir + filename).c_str(), &stats);
+      data->mtd->modify_file(filename, stats.st_size, modified);
 
-      net->write8(0);
-      global_log.message(std::string("Pushed file ") + (char *)filename, 3);
+      // Send the update message to all clients
+      cmd.clear();
+      Write::i32(filename.length(), cmd);
+      cmd.append(filename);
+      Write::i64(modified, cmd);
+      Write::i8(0, cmd);
+      for (auto it = data->handles.begin(), end = data->handles.end();
+           it != end; it++)
+        {
+          if (*it == netmsg)
+            continue;
+
+         try
+            {
+              Message *msg2 = (*it)->send_and_wait(cmd);
+              netmsg->destroy(msg2);
+            }
+          catch(const char * e)
+            {
+              global_log.message("Failed to push update to client",
+                                 Log::WARNING);
+            }
+          catch(const std::string & e)
+            {
+              global_log.message("Failed to push update to client",
+                                 Log::WARNING);
+            }
+        }
+
+      global_log.message(std::string("Pushed file ") + filename, Log::NOTICE);
     }
   else if (cmd == CMD_PULL)
     {
       // Get the client filename
-      uint32_t filename_len = net->read32();
-      uint8_t filename[filename_len+1];
-      net->read_all(filename, filename_len);
-      filename[filename_len] = 0;
+      uint32_t filename_len = Read::i32(ret, ret_len);
+      std::string filename((char*)ret, filename_len);
+      ret += filename_len;
+      filename_len -= filename_len;
 
-      // Get metadata or write 0 on failure
-      struct stat stats;
-      if (stat((user_dir + (char*)filename).c_str(), &stats) < 0)
-        {
-          global_log.message(std::string("Invalid Pull ") +
-                             (char *)filename, 3);
-          net->write64(0);
-          net->write64(0);
-        }
+      // Get metadata or write 1 on failure
+      Metadata::Data fd = data->mtd->get_file(filename);
 
       // Write the metadata
-      net->write64(stats.st_mtime);
-      net->write64(stats.st_size);
+      std::string cmd;
+      Write::i8(0, cmd);
+      Write::i64(fd.modified, cmd);
+      msg->set(cmd);
+      msg = netmsg->reply_and_wait(msg);
 
       // Write the file
-      std::ifstream fin((user_dir + (char *)filename).c_str(),
-                       std::ios::in | std::ios::binary);
-      uint8_t * bin = new uint8_t[stats.st_size];
-      fin.read((char*)bin, stats.st_size);
-      fin.close();
-      net->write(bin, stats.st_size);
-      delete bin;
+      std::ifstream fin(user_dir + filename, std::ios::in | std::ios::binary);
+      msg = netmsg->reply_and_wait(msg, &fin, fd.size);
+      netmsg->destroy(msg);
 
-      global_log.message(std::string("Pulled file ") + (char*)filename, 3);
+      global_log.message(std::string("Pulled file ") + filename, Log::NOTICE);
     }
   else if (cmd == CMD_DEL)
     {
-      uint64_t modified = net->read64();
-      uint32_t filename_len = net->read32();
-      uint8_t filename[filename_len];
-      net->read_all(filename, filename_len);
+      uint64_t modified = Read::i64(ret, ret_len);
+      uint32_t filename_len = Read::i32(ret, ret_len);
+      std::string filename((char*)ret, filename_len);
+      ret += filename_len;
+      ret_len -= filename_len;
 
-      mtd->delete_file(std::string((char*)filename), modified);
-      net->write8(0);
-      global_log.message(std::string("Deleted file ") + (char*)filename, 3);
+      // Update the metadata
+      data->mtd->delete_file(filename, modified);
+
+      // Propagate the deletion to all clients
+      std::string cmd;
+      Write::i32(filename.length(), cmd);
+      cmd.append(filename);
+      Write::i64(modified, cmd);
+      Write::i8(0, cmd);
+      for (auto it = data->handles.begin(), end = data->handles.end();
+           it != end; it++)
+        {
+          if (*it == netmsg)
+            continue;
+
+          try
+            {
+              Message *msg2 = (*it)->send_and_wait(cmd);
+              netmsg->destroy(msg2);
+            }
+          catch(const char * e)
+            {
+              global_log.message("Failed to push update to client",
+                                 Log::WARNING);
+            }
+          catch(const std::string & e)
+            {
+              global_log.message("Failed to push update to client",
+                                 Log::WARNING);
+            }
+        }
+      global_log.message(std::string("Deleted file ") + filename, Log::NOTICE);
     }
   else
     throw "Invalid command from client";
-
-  return false;
 }
 
 void client(std::string store_dir, Net * net, User * user)
@@ -263,23 +325,42 @@ void client(std::string store_dir, Net * net, User * user)
         }
       else
         data = udata.at(user_dir);
+      data->lock.lock();
+      data->handles.insert(netmsg);
+      data->lock.unlock();
       udata_lock.unlock();
 
       // Make sure the data directory exists
       mkdir(user_dir.c_str(), 0755);
 
       while (true)
-        if(exec_command(user_dir + "/", net, data->mtd))
-          break;
-        else
-          {
-            // Save the metadata after each call
-            mtd_buff = data->mtd->serialize(mtd_size);
-            std::ofstream fout(mtd_name, std::ios::out | std::ios::binary);
-            fout.write((char*)mtd_buff, mtd_size);
-            fout.close();
-            delete mtd_buff;
-          }
+        {
+          // Wait to process the message
+          Message *msg = netmsg->wait_new();
+          uint8_t *ret = (uint8_t*)msg->get().data(), cmd;
+          size_t ret_len = msg->get().length();
+          cmd = Read::i8(ret, ret_len);
+
+          // Exit the loop if the message is quit
+          if (cmd == CMD_QUIT)
+            {
+              netmsg->destroy(msg);
+              break;
+            }
+
+          // Lock the struct to prevent changes
+          data->lock.lock();
+          exec_command(user_dir + "/", msg, netmsg, data);
+
+          // Save the metadata after each call
+          mtd_buff = data->mtd->serialize(mtd_size);
+          std::ofstream fout(mtd_name, std::ios::out | std::ios::binary);
+          fout.write((char*)mtd_buff, mtd_size);
+          fout.close();
+          delete mtd_buff;
+
+          data->lock.unlock();
+        }
     }
   catch(const std::string & e)
     {
@@ -293,13 +374,21 @@ void client(std::string store_dir, Net * net, User * user)
   if(data != NULL)
     {
       udata_lock.lock();
-      data->handles--;
-      if (data->handles == 0)
+      data->lock.lock();
+
+      // Erase the handle to our current netmsg
+      data->handles.erase(netmsg);
+      if (data->handles.size() == 0)
         {
+          data->lock.unlock();
+
+          // Erase the data struct if all clients disconnect
           delete data->mtd;
           delete data;
           udata.erase(user_dir);
         }
+      else
+        data->lock.unlock();
       udata_lock.unlock();
     }
 

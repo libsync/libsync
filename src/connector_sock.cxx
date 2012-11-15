@@ -133,15 +133,12 @@ void SockConnector::get_file(const std::string & filename, uint64_t & modified,
     }
 
   // Get the modification time
-  cmd.clear();
-  Write::i8(0, cmd);
-  msg->set(cmd);
-  msg = netmsg->reply_and_wait(msg);
-  ret = (uint8_t*)msg->get().data();
-  ret_len = msg->get().length();
   modified = Read::i64(ret, ret_len);
 
   // Get the file contents
+  cmd.clear();
+  Write::i8(0, cmd);
+  msg->set(cmd);
   netmsg->reply_and_wait(msg, &data);
   msg->set(cmd);
   netmsg->reply_only(msg);

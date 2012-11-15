@@ -144,14 +144,18 @@ Metadata::Data Metadata::get_file(const std::string & filename) const
   return files.at(filename);
 }
 
-void Metadata::new_file(const std::string & filename, uint64_t modified)
+void Metadata::new_file(const std::string & filename, size_t size,
+                        uint64_t modified)
 {
+  files[filename].size = size;
   files[filename].modified = modified;
   files[filename].deleted = false;
 }
 
-void Metadata::modify_file(const std::string & filename, uint64_t modified)
+void Metadata::modify_file(const std::string & filename, size_t size,
+                           uint64_t modified)
 {
+  files[filename].size = size;
   files[filename].modified = modified;
   files[filename].deleted = false;
 }

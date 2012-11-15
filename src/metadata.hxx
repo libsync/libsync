@@ -45,8 +45,9 @@ public:
   std::unordered_map<std::string, Data>::const_iterator end() const;
   Data get_file(const std::string & filename) const;
 
-  void new_file(const std::string & filename, uint64_t modified);
-  void modify_file(const std::string & filename, uint64_t modified);
+  void new_file(const std::string & filename, size_t size, uint64_t modified);
+  void modify_file(const std::string & filename, size_t size,
+                   uint64_t modified);
   void delete_file(const std::string & filename, uint64_t modified);
 private:
   std::unordered_map<std::string, Data> files;
