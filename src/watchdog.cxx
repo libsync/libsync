@@ -113,6 +113,7 @@ void Watchdog::regard(const std::string & path)
 {
   no_notify_lock.lock();
   no_notify.erase(path);
+  no_notify_old[path] = time(NULL);
   no_notify_lock.unlock();
 }
 
@@ -121,44 +122,43 @@ Watchdog::Data Watchdog::wait()
   struct inotify_event * event = NULL;
   std::string event_str;
   Data data;
+  struct stat stats;
 
   // Get events until we have a valid one
   no_notify_lock.lock();
   while (event == NULL || event->mask & IN_IGNORED ||
-         no_notify.count(data.filename) > 0)
+         no_notify.count(data.filename) > 0 ||
+         no_notify_old[data.filename] >= data.modified)
     {
       no_notify_lock.unlock();
       event_str = gather_event();
       event = (struct inotify_event *)event_str.c_str();
+
       data.filename = wds.at(event->wd) + "/" + event->name;
+
+      // Parse the event into data struct
+      if (event->mask & (IN_DELETE | IN_DELETE_SELF | IN_MOVED_FROM))
+        {
+          data.status = FileStatus::deleted;
+          data.modified = time(NULL);
+          data.directory = false;
+          data.size = 0;
+        }
+      else
+        {
+          data.status = FileStatus::modified;
+          if (stat(data.filename.c_str(), &stats) < 0)
+            throw "Failed to get file stats";
+
+          data.modified = stats.st_mtime;
+          data.directory = S_ISDIR(stats.st_mode);
+          data.size = stats.st_size;
+        }
+
       no_notify_lock.lock();
     }
+  no_notify_old.erase(data.filename);
   no_notify_lock.unlock();
-
-  // Parse the event into data struct
-  if (event->mask & (IN_DELETE | IN_DELETE_SELF | IN_MOVED_FROM))
-    data.status = FileStatus::deleted;
-  else
-    data.status = FileStatus::modified;
-
-  // Modified File
-  if (data.status == FileStatus::modified)
-    {
-      struct stat stats;
-      if (stat(data.filename.c_str(), &stats) < 0)
-        throw "Failed to get file stats";
-
-      data.modified = stats.st_mtime;
-      data.directory = S_ISDIR(stats.st_mode);
-      data.size = stats.st_size;
-    }
-  // Deleted File
-  else
-    {
-      data.modified = time(NULL);
-      data.directory = false;
-      data.size = 0;
-    }
 
   global_log.message("Change event" + event->wd, 3);
 

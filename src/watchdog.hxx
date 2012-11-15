@@ -61,6 +61,7 @@ private:
   std::unordered_map<int, std::string> wds;
   std::string inotify_bytes;
   std::unordered_set<std::string> no_notify;
+  std::unordered_map<std::string, uint64_t> no_notify_old;
   std::mutex no_notify_lock;
 
   std::string gather_event();

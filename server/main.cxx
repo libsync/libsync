@@ -42,6 +42,12 @@
 #define REG_INV 1
 #define REG_CLOSED 2
 
+struct UserData
+{
+  Metadata *mtd;
+
+};
+
 uint64_t filesize(const std::string & path)
 {
   struct stat stats;
@@ -228,6 +234,7 @@ void client(std::string store_dir, Net * net, User * user)
           mtd_exists = true;
         }
       catch(const std::string & e) {}
+
       if (mtd_exists)
         {
           mtd_buff = new uint8_t[mtd_size];
