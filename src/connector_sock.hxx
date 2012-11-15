@@ -28,6 +28,7 @@
 #include <string>
 
 #include "net.hxx"
+#include "netmsg.hxx"
 #include "connector.hxx"
 #include "metadata.hxx"
 
@@ -45,10 +46,13 @@ public:
   void get_file(const std::string & filename, uint64_t & modified,
                 std::ostream & data);
   void delete_file(const std::string & filename, uint64_t & modified);
+  std::pair<std::string, Metadata::Data> wait();
+
 private:
   NetClient client;
   std::string user, pass;
   Net * net;
+  NetMsg * netmsg;
 
   void connect(bool reg = false);
 };

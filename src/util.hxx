@@ -24,6 +24,7 @@
 
 #include <cstdint>
 #include <cstring>
+#include <string>
 
 #if defined(__linux__)
 #  include <endian.h>
@@ -42,6 +43,18 @@ namespace Read
   uint16_t i16(uint8_t * & data, size_t & size);
   uint32_t i32(uint8_t * & data, size_t & size);
   uint64_t i64(uint8_t * & data, size_t & size);
+};
+
+namespace Write
+{
+  void i8(uint8_t i, uint8_t * data, size_t & offset);
+  void i8(uint8_t i, std::string & data);
+  void i16(uint16_t i, uint8_t * data, size_t & offset);
+  void i16(uint16_t i, std::string & data);
+  void i32(uint32_t i, uint8_t * data, size_t & offset);
+  void i32(uint32_t i, std::string & data);
+  void i64(uint64_t i, uint8_t * data, size_t & offset);
+  void i64(uint64_t i, std::string & data);
 };
 
 #endif

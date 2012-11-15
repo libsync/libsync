@@ -20,6 +20,7 @@
 */
 
 #include "connector_sock.hxx"
+#include "util.hxx"
 
 #define HAND_LOGIN 0
 #define HAND_REG 1
@@ -40,30 +41,28 @@
 SockConnector::SockConnector(const std::string & host, uint16_t port,
                              const std::string & user, const std::string & pass,
                              bool reg)
-  : client(host, port), user(user), pass(pass), net(NULL)
+  : client(host, port), user(user), pass(pass), net(NULL), netmsg(NULL)
 {
   connect(reg);
 }
 
 SockConnector::~SockConnector()
 {
+  delete netmsg;
   delete net;
 }
 
 Metadata * SockConnector::get_metadata()
 {
   // Ask the server for the metadata
-  net->write8(CMD_META);
+  std::string cmd;
+  Write::i8(CMD_META, cmd);
+  Message *msg = netmsg->send_and_wait(cmd);
 
-  // Allocate a buffer based on the metadata length
-  size_t buff_size = net->read32();
-  uint8_t * buff = new uint8_t[buff_size];
+  Metadata * ret = new Metadata((uint8_t*)msg->get().data(),
+                                msg->get().length());
 
-  // Read the metadata
-  net->read_all(buff, buff_size);
-
-  Metadata * ret = new Metadata(buff, buff_size);
-  delete[] buff;
+  netmsg->destroy(msg);
 
   return ret;
 }
@@ -72,63 +71,111 @@ void SockConnector::push_file(const std::string & filename, uint64_t modified,
                               std::istream & data, size_t data_size)
 {
   // Send the command info
-  net->write8(CMD_PUSH);
-  net->write64(modified);
-  net->write32(filename.length());
-  net->write64(data_size);
+  std::string cmd;
+  size_t off = 0;
 
-  net->write(filename);
+  Write::i8(CMD_PUSH, cmd);
+  Write::i64(modified, cmd);
+  Write::i32(filename.length(), cmd);
+  cmd.append(filename);
 
-  // Write data block by block until it's done
-  uint8_t buff[BUFF];
-  while (data_size > 0)
+  Message * msg = netmsg->send_and_wait(cmd);
+  uint8_t *ret = (uint8_t*)msg->get().data();
+  size_t ret_len = msg->get().length();
+  if (Read::i8(ret, ret_len) != 0)
     {
-      ssize_t buff_len = data.readsome((char *)buff, BUFF);
-      if (buff_len <= 0)
-        throw "Failed to read data from the file";
-      net->write(buff, buff_len);
-      data_size -= buff_len;
+      netmsg->destroy(msg);
+      return;
     }
 
-  // Check for success
-  if (net->read8() != 0)
-    throw "Failed to send file to the server";
+  // Send the file contents
+  msg = netmsg->reply_and_wait(msg, &data, data_size);
+  ret = (uint8_t*)msg->get().data();
+  ret_len = msg->get().length();
+  if (Read::i8(ret, ret_len) != 0)
+    {
+      netmsg->destroy(msg);
+      throw "Failed to push file";
+    }
+  netmsg->destroy(msg);
 }
 
 void SockConnector::get_file(const std::string & filename, uint64_t & modified,
                              std::ostream & data)
 {
   // Send the command info
-  net->write8(CMD_PULL);
-  net->write32(filename.length());
-  net->write(filename);
+  std::string cmd;
+  Write::i8(CMD_PULL, cmd);
+  Write::i32(filename.length(), cmd);
+  cmd.append(filename);
+
+  Message *msg = netmsg->send_and_wait(cmd);
+  uint8_t *ret = (uint8_t*)msg->get().data();
+  size_t ret_len = msg->get().length();
+  if (Read::i8(ret, ret_len) != 0)
+    {
+      netmsg->destroy(msg);
+      throw "Failed to retrieve file";
+    }
 
   // Get the modification time
-  modified = net->read64();
+  cmd.clear();
+  Write::i8(0, cmd);
+  msg->set(cmd);
+  msg = netmsg->reply_and_wait(msg);
+  ret = (uint8_t*)msg->get().data();
+  ret_len = msg->get().length();
+  modified = Read::i64(ret, ret_len);
 
   // Get the file contents
-  size_t data_len = net->read64();
-  uint8_t buff[BUFF];
-  while(data_len > 0)
-    {
-      size_t read = data_len > BUFF ? BUFF : data_len;
-      net->read_all(buff, read);
-      data.write((char *)buff, read);
-      data_len -= read;
-    }
+  netmsg->reply_and_wait(msg, &data);
+  msg->set(cmd);
+  netmsg->reply_only(msg);
 }
 
 void SockConnector::delete_file(const std::string & filename,
                                 uint64_t & modified)
 {
   // Send the command info
-  net->write8(CMD_DEL);
-  net->write64(modified);
-  net->write32(filename.length());
-  net->write(filename);
+  std::string cmd;
+  Write::i8(CMD_DEL, cmd);
+  Write::i64(modified, cmd);
+  Write::i32(filename.length(), cmd);
+  cmd.append(filename);
 
-  if (net->read8() != 0)
+  Message *msg = netmsg->send_and_wait(cmd);
+  uint8_t *ret = (uint8_t*)msg->get().data();
+  size_t ret_len = msg->get().length();
+  if (Read::i8(ret, ret_len) != 0)
     throw "Server failed to delete file";
+}
+
+std::pair<std::string, Metadata::Data> SockConnector::wait()
+{
+  // Wait for a message from the server
+  Message *msg = netmsg->wait_new();
+
+  // Decompose the data
+  uint8_t *data = (uint8_t*)msg->get().data();
+  size_t data_len = msg->get().length();
+
+  size_t name_len = Read::i32(data, data_len);
+  std::string name((char*)data, name_len);
+  data += name_len;
+  data_len -= name_len;
+
+  Metadata::Data mtd;
+  mtd.size = 0;
+  mtd.modified = Read::i64(data, data_len);
+  mtd.deleted = (bool)Read::i8(data, data_len);
+
+  // Write a response saying we received the update
+  std::string cmd;
+  Write::i8(0, cmd);
+  msg->set(cmd);
+  netmsg->reply_only(msg);
+
+  return std::pair<std::string, Metadata::Data>(name, mtd);
 }
 
 void SockConnector::connect(bool reg)
@@ -170,4 +217,6 @@ void SockConnector::connect(bool reg)
       if (ret == LOGIN_INV)
         throw "Invalid Username or Password";
     }
+
+  netmsg = new NetMsg(net);
 }

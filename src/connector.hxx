@@ -37,6 +37,7 @@ public:
                 std::ostream & data) = 0;
   virtual void delete_file(const std::string & filename,
                            uint64_t & modified) = 0;
+  virtual std::pair<std::string, Metadata::Data> wait() = 0;
 };
 
 #endif

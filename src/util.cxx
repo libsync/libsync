@@ -58,3 +58,50 @@ uint64_t Read::i64(uint8_t * & data, size_t & size)
   data += 8;
   return be64toh(out);
 }
+
+void Write::i8(uint8_t i, uint8_t * data, size_t & offset)
+{
+  *((uint8_t*)(data+offset)) = i;
+  offset += 1;
+}
+
+void Write::i8(uint8_t i, std::string & data)
+{
+  data.append((char*)&i, 1);
+}
+
+void Write::i16(uint16_t i, uint8_t * data, size_t & offset)
+{
+  *((uint16_t*)(data+offset)) = htobe16(i);
+  offset += 2;
+}
+
+void Write::i16(uint16_t i, std::string & data)
+{
+  i = htobe16(i);
+  data.append((char*)&i, 2);
+}
+
+void Write::i32(uint32_t i, uint8_t * data, size_t & offset)
+{
+  *((uint32_t*)(data+offset)) = htobe32(i);
+  offset += 2;
+}
+
+void Write::i32(uint32_t i, std::string & data)
+{
+  i = htobe32(i);
+  data.append((char*)&i, 4);
+}
+
+void Write::i64(uint64_t i, uint8_t * data, size_t & offset)
+{
+  *((uint64_t*)(data+offset)) = htobe64(i);
+  offset += 8;
+}
+
+void Write::i64(uint64_t i, std::string & data)
+{
+  i = htobe64(i);
+  data.append((char*)&i, 8);
+}
