@@ -63,6 +63,25 @@ Message *NetMsg::send_and_wait(const std::string & data)
   return msg;
 }
 
+Message *NetMsg::wait_new()
+{
+  Msg *msg;
+  uint64_t id;
+
+  read_lock.lock();
+  while(read_new.empty())
+    read_cond.wait(read_lock);
+  id = read_new.front();
+  read_new.pop();
+  read_lock.unlock();
+
+  msgs_lock.lock();
+  msg = server_msgs.at(id);
+  msgs_lock.unlock();
+
+  return msg;
+}
+
 Message *NetMsg::reply_and_wait(Message *message)
 {
   Msg *msg = (Msg*)message;
@@ -192,7 +211,7 @@ void NetMsg::listen_thread()
 {
   try
     {
-      bool server;
+      bool server, ne = false;
       uint64_t id, len, red;
       uint8_t buff[BUFF];
       Msg *msg;
@@ -223,6 +242,7 @@ void NetMsg::listen_thread()
                   msgs_lock.lock();
                   server_msgs[id] = msg;
                   msgs_lock.unlock();
+                  ne = true;
                 }
             }
 
@@ -274,7 +294,10 @@ void NetMsg::listen_thread()
 
           // Inform the waiting threads of an update
           read_lock.lock();
-          read_done.insert(id);
+          if (ne)
+            read_new.push(id);
+          else
+            read_done.insert(id);
           read_lock.unlock();
           read_cond.notify_all();
         }

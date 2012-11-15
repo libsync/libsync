@@ -63,6 +63,12 @@ public:
   Message *send_and_wait(const std::string & data);
 
   /**
+   * Waits for new messages to arrive from the server
+   * @return The message data from the server
+   */
+  Message *wait_new();
+
+  /**
    * Send a reply message to the server and wait for the response
    * @param message The message to send
    * @return The received reply
