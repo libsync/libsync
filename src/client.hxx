@@ -44,11 +44,13 @@ public:
    */
   Client(const Config & conf);
   ~Client();
+
 private:
   struct Msg
   {
     bool remote;
     std::string filename;
+
     Metadata::Data file_data;
   };
 

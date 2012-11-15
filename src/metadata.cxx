@@ -55,6 +55,7 @@ Metadata::Metadata(uint8_t * data, size_t size)
       Data d;
       d.modified = Read::i64(data, size);
       d.deleted = Read::i8(data, size);
+      d.size = Read::i64(data, size);
 
       // Append the file to the metadata
       files[filename] = d;
@@ -113,6 +114,7 @@ uint8_t * Metadata::serialize(size_t & size)
       uint64_t mod = htobe64(it->second.modified);
       out.append((char*)&mod, 8);
       out.append((char*)&it->second.deleted, 1);
+      Write::i64(it->second.size, out);
     }
 
   // Copy the serialized bytes into the output buffer
