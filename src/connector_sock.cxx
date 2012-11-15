@@ -58,6 +58,9 @@ void SockConnector::close()
 {
   if (!closed)
     {
+      std::string cmd;
+      Write::i8(CMD_QUIT, cmd);
+      netmsg->send_only(cmd);
       netmsg->close();
       closed = true;
     }

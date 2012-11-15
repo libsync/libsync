@@ -26,12 +26,16 @@
 #include <iostream>
 #include <fstream>
 #include <thread>
+#include <mutex>
+#include <unordered_map>
 #include <sys/stat.h>
 
 #include "../src/net.hxx"
+#include "../src/netmsg.hxx"
 #include "../src/log.hxx"
 #include "../src/config.hxx"
 #include "../src/metadata.hxx"
+#include "../src/util.hxx"
 #include "user.hxx"
 
 #define LOGIN_INV 1
@@ -45,8 +49,12 @@
 struct UserData
 {
   Metadata *mtd;
-
+  std::mutex lock;
+  uint64_t handles;
 };
+
+std::unordered_map<std::string, UserData*> udata;
+std::mutex udata_lock;
 
 uint64_t filesize(const std::string & path)
 {
@@ -213,45 +221,60 @@ bool exec_command(const std::string & user_dir, Net * net, Metadata * mtd)
 
 void client(std::string store_dir, Net * net, User * user)
 {
+  UserData * data = NULL;
+  NetMsg * netmsg = NULL;
+  std::string user_dir;
+  uint64_t mtd_size;
+  uint8_t * mtd_buff;
+  bool mtd_exists = false;
+
   try
     {
-      std::string user_dir = handshake(net, user);
+      std::string mtd_name = user_dir + ".mtd";
+      user_dir = handshake(net, user);
+      netmsg = new NetMsg(net);
 
-      // Make sure the directory exists
-      global_log.message(user_dir, Log::NOTICE);
+      // Get the user data structure
+      udata_lock.lock();
+      if (udata.count(user_dir) == 0)
+        {
+          data = new UserData;
+          udata[user_dir] = data;
+
+          // Extract the metadata contents
+          try
+            {
+              mtd_size = filesize(mtd_name);
+              mtd_exists = true;
+            }
+          catch(const std::string & e) {}
+
+          if (mtd_exists)
+            {
+              mtd_buff = new uint8_t[mtd_size];
+              std::ifstream fin(mtd_name, std::ios::in | std::ios::binary);
+              fin.read((char*)mtd_buff, mtd_size);
+              fin.close();
+              data->mtd = new Metadata(mtd_buff, mtd_size);
+              delete mtd_buff;
+            }
+          else
+            data->mtd = new Metadata();
+        }
+      else
+        data = udata.at(user_dir);
+      udata_lock.unlock();
+
+      // Make sure the data directory exists
       mkdir(user_dir.c_str(), 0755);
 
-      // Extract the metadata contents
-      std::string mtd_name = user_dir + ".mtd";
-      uint64_t mtd_size;
-      uint8_t * mtd_buff;
-      bool mtd_exists = false;
-      Metadata mtd;
-
-      try
-        {
-          mtd_size = filesize(mtd_name);
-          mtd_exists = true;
-        }
-      catch(const std::string & e) {}
-
-      if (mtd_exists)
-        {
-          mtd_buff = new uint8_t[mtd_size];
-          std::ifstream fin(mtd_name, std::ios::in | std::ios::binary);
-          fin.read((char*)mtd_buff, mtd_size);
-          fin.close();
-          mtd = Metadata(mtd_buff, mtd_size);
-          delete mtd_buff;
-        }
-
       while (true)
-        if(exec_command(user_dir + "/", net, &mtd))
+        if(exec_command(user_dir + "/", net, data->mtd))
           break;
         else
           {
             // Save the metadata after each call
-            mtd_buff = mtd.serialize(mtd_size);
+            mtd_buff = data->mtd->serialize(mtd_size);
             std::ofstream fout(mtd_name, std::ios::out | std::ios::binary);
             fout.write((char*)mtd_buff, mtd_size);
             fout.close();
@@ -266,6 +289,21 @@ void client(std::string store_dir, Net * net, User * user)
     {
       global_log.message(std::string("Client Failed: ") + e, 2);
     }
+
+  if(data != NULL)
+    {
+      udata_lock.lock();
+      data->handles--;
+      if (data->handles == 0)
+        {
+          delete data->mtd;
+          delete data;
+          udata.erase(user_dir);
+        }
+      udata_lock.unlock();
+    }
+
+  delete netmsg;
 }
 
 int main(int argc, char * argv[])
