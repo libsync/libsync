@@ -116,8 +116,8 @@ int main(int argc, char * argv[])
   // Setup the action handler for clean quitting
   memset(&quitact, 0, sizeof(quitact));
   quitact.sa_handler = quit;
-  sigaction(SIGINT, &quitact, NULL);
-  sigaction(SIGQUIT, &quitact, NULL);
+  //sigaction(SIGINT, &quitact, NULL);
+  //sigaction(SIGQUIT, &quitact, NULL);
 
   // Hold the main thread until it is killed
   endlock->lock();

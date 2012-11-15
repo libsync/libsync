@@ -66,6 +66,7 @@ Client::Client(const Config & conf)
       global_log.message("Spawning Client Threads", Log::NOTICE);
       file_thread = new std::thread(std::bind(&Client::file_master, this));
       pull_thread = new std::thread(std::bind(&Client::pull_master, this));
+      wd.add_watch(sync_dir, true);
       watch_thread = new std::thread(std::bind(&Client::watch_master, this));
     }
   catch(const char * e)
@@ -257,6 +258,7 @@ void Client::watch_master()
 
   try
     {
+      global_log.message("Started Watchdog", Log::NOTICE);
       while(true)
         {
           // Wait for the watchdog to return events
@@ -273,7 +275,7 @@ void Client::watch_master()
           messages.push(msg);
           message_lock.unlock();
           message_cond.notify_all();
-         }
+        }
     }
   catch(const char * e)
     {}
