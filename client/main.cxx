@@ -121,6 +121,7 @@ int main(int argc, char * argv[])
 
   // Hold the main thread until it is killed
   endlock->lock();
+  global_log.message("Shutting Down", Log::NOTICE);
   delete endlock;
 
   delete client;

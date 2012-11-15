@@ -63,7 +63,7 @@ Metadata * SockConnector::get_metadata()
   net->read_all(buff, buff_size);
 
   Metadata * ret = new Metadata(buff, buff_size);
-  delete buff;
+  delete[] buff;
 
   return ret;
 }
