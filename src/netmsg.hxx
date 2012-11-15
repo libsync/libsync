@@ -128,8 +128,8 @@ private:
   std::thread writer;
   std::mutex msgs_lock, write_lock, read_lock;
   std::condition_variable_any write_cond, read_cond;
-  std::queue< std::pair<uint64_t,bool> > write_queue;
-  std::unordered_set<uint64_t> read_done;
+  std::queue< std::pair<uint64_t, bool> > write_queue;
+  std::unordered_set<uint64_t> client_read_done, server_read_done;
   std::queue<uint64_t> read_new;
 
   void writer_thread();

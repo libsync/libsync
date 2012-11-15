@@ -169,10 +169,12 @@ void exec_command(const std::string & user_dir, Message * msg,
                         std::ios::out | std::ios::binary);
       Write::i8(0, cmd);
       msg->set(cmd);
+      global_log.message("Writing to data file", Log::DEBUG);
       netmsg->reply_and_wait(msg, &out);
       out.close();
 
       // Acknowledge successful transfer
+      global_log.message("Writing Succeeded", Log::DEBUG);
       msg->set(cmd);
       netmsg->reply_only(msg);
 
@@ -218,7 +220,7 @@ void exec_command(const std::string & user_dir, Message * msg,
       uint32_t filename_len = Read::i32(ret, ret_len);
       std::string filename((char*)ret, filename_len);
       ret += filename_len;
-      filename_len -= filename_len;
+      ret_len -= filename_len;
 
       // Get metadata or write 1 on failure
       Metadata::Data fd = data->mtd->get_file(filename);

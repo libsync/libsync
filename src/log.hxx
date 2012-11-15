@@ -36,7 +36,7 @@ class Log
 public:
   /**
    */
-  static const int ERROR = 1, WARNING = 2, NOTICE = 3;
+  static const int ERROR = 1, WARNING = 2, NOTICE = 3, DEBUG = 4;
 
   /**
    * The default log, has a message level of 1

@@ -29,6 +29,7 @@
 
 #include "net.hxx"
 #include "metadata.hxx"
+#include "log.hxx"
 #include "util.hxx"
 
 Metadata::Metadata()
@@ -150,6 +151,8 @@ void Metadata::new_file(const std::string & filename, size_t size,
   files[filename].size = size;
   files[filename].modified = modified;
   files[filename].deleted = false;
+
+  global_log.message(std::string("New File: ") + filename, Log::NOTICE);
 }
 
 void Metadata::modify_file(const std::string & filename, size_t size,
@@ -158,10 +161,12 @@ void Metadata::modify_file(const std::string & filename, size_t size,
   files[filename].size = size;
   files[filename].modified = modified;
   files[filename].deleted = false;
+  global_log.message(std::string("Modified File: ") + filename, Log::NOTICE);
 }
 
 void Metadata::delete_file(const std::string & filename, uint64_t modified)
 {
   files[filename].modified = modified;
   files[filename].deleted = true;
+  global_log.message(std::string("Delete File: ") + filename, Log::NOTICE);
 }

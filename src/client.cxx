@@ -130,6 +130,9 @@ void Client::merge_metadata(const Metadata & remote)
       msg.remote = false;
       msg.file_data = it->second;
 
+      global_log.message(std::string("Local Push: ") + it->first,
+                         Log::DEBUG);
+
       // Push the message onto the stack
       message_lock.lock();
       messages.push(msg);
@@ -150,6 +153,9 @@ void Client::merge_metadata(const Metadata & remote)
       msg.filename = it->first;
       msg.remote = true;
       msg.file_data = it->second;
+
+      global_log.message(std::string("Remote Push: ") + it->first,
+                         Log::DEBUG);
 
       // Push the message onto the stack
       message_lock.lock();
@@ -181,9 +187,15 @@ void Client::file_master()
       wd.disregard(full_name);
       if (msg.remote)
         if (msg.file_data.deleted)
-          File::recursive_remove(full_name);
+          {
+            global_log.message(std::string("Remote Delete: ") + full_name,
+                               Log::NOTICE);
+            File::recursive_remove(full_name);
+          }
         else
           {
+            global_log.message(std::string("Remote Modify: ") + full_name,
+                               Log::NOTICE);
             std::ofstream out(full_name, std::ios::out | std::ios::binary);
             conn->get_file(msg.filename, msg.file_data.modified, out);
             out.close();
@@ -194,9 +206,15 @@ void Client::file_master()
           }
       else
         if (msg.file_data.deleted)
-          conn->delete_file(msg.filename, msg.file_data.modified);
+          {
+            global_log.message(std::string("Local Delete: ") + full_name,
+                               Log::NOTICE);
+            conn->delete_file(msg.filename, msg.file_data.modified);
+          }
         else
           {
+            global_log.message(std::string("Local Modify: ") + full_name,
+                               Log::NOTICE);
             struct stat stats;
             stat(full_name.c_str(), &stats);
             std::ifstream in(full_name, std::ios::in | std::ios::binary);
@@ -216,6 +234,8 @@ void Client::file_master()
             in.close();
           }
       wd.regard(full_name);
+      global_log.message(std::string("Finished Processing: ") + full_name,
+                         Log::NOTICE);
 
       // Relock for the next message
       message_lock.lock();

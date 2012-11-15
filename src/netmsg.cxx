@@ -175,9 +175,7 @@ void NetMsg::writer_thread()
           continue;
         }
 
-      global_log.message("Sending message", Log::NOTICE);
-
-      // Get the message data from the id
+     // Get the message data from the id
       msgs_lock.lock();
       if (id.second)
         msg = server_msgs.at(id.first);
@@ -187,7 +185,8 @@ void NetMsg::writer_thread()
 
       // Process the message and send to the server
       net->write8(!msg->server);
-      global_log.message("Sent server message", Log::NOTICE);
+      global_log.message(std::string("Sent message: ") +
+                         std::to_string(id.first), Log::NOTICE);
       net->write64(msg->id);
       if (msg->in == NULL)
         {
@@ -318,10 +317,14 @@ void NetMsg::listen_thread()
           read_lock.lock();
           if (ne)
             read_new.push(id);
+          else if (server)
+            server_read_done.insert(id);
           else
-            read_done.insert(id);
+            client_read_done.insert(id);
           read_lock.unlock();
           read_cond.notify_all();
+
+          global_log.message("Finished Reading", Log::DEBUG);
         }
     }
   catch(const char * e)
@@ -361,8 +364,25 @@ void NetMsg::send(Msg * msg)
 void NetMsg::wait(Msg * msg)
 {
   read_lock.lock();
-  while(read_done.count(msg->id) == 0)
-    read_cond.wait(read_lock);
-  read_done.erase(msg->id);
+  if (msg->server)
+    {
+      while(server_read_done.count(msg->id) == 0)
+        {
+          global_log.message(std::string("Waiting: ") +
+                             std::to_string(msg->id), Log::DEBUG);
+          read_cond.wait(read_lock);
+        }
+      server_read_done.erase(msg->id);
+    }
+  else
+    {
+      while(client_read_done.count(msg->id) == 0)
+        {
+          global_log.message(std::string("Waiting: ") +
+                             std::to_string(msg->id), Log::DEBUG);
+          read_cond.wait(read_lock);
+        }
+      client_read_done.erase(msg->id);
+    }
   read_lock.unlock();
 }
