@@ -78,13 +78,13 @@ std::string handshake(Net * net, User * user)
   uint8_t * uusername = new uint8_t[user_len+1];
   net->read_all(uusername, user_len);
   std::string username((char*)uusername, user_len);
-  delete uusername;
+  delete[] uusername;
 
   size_t pass_len = (size_t)net->read16();
   uint8_t * upass = new uint8_t[pass_len];
   net->read_all(upass, pass_len);
   std::string pass((char*)upass, pass_len);
-  delete upass;
+  delete[] upass;
 
   // Check the login
   std::string dir;
@@ -292,8 +292,8 @@ void client(std::string store_dir, Net * net, User * user)
 
   try
     {
-      std::string mtd_name = user_dir + ".mtd";
       user_dir = handshake(net, user);
+      std::string mtd_name = user_dir + ".mtd";
       netmsg = new NetMsg(net);
 
       // Get the user data structure
@@ -313,12 +313,14 @@ void client(std::string store_dir, Net * net, User * user)
 
           if (mtd_exists)
             {
+              global_log.message(std::string("Deserializing: ") + mtd_name,
+                                 Log::NOTICE);
               mtd_buff = new uint8_t[mtd_size];
               std::ifstream fin(mtd_name, std::ios::in | std::ios::binary);
               fin.read((char*)mtd_buff, mtd_size);
               fin.close();
               data->mtd = new Metadata(mtd_buff, mtd_size);
-              delete mtd_buff;
+              delete[] mtd_buff;
             }
           else
             data->mtd = new Metadata();
@@ -357,7 +359,7 @@ void client(std::string store_dir, Net * net, User * user)
           std::ofstream fout(mtd_name, std::ios::out | std::ios::binary);
           fout.write((char*)mtd_buff, mtd_size);
           fout.close();
-          delete mtd_buff;
+          delete[] mtd_buff;
 
           data->lock.unlock();
         }

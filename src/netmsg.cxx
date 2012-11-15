@@ -65,7 +65,7 @@ void NetMsg::send_only(const std::string & data)
 Message *NetMsg::send_and_wait(const std::string & data)
 {
   Msg *msg = send(data, false);
-
+  global_log.message("Waiting on Message Response", Log::NOTICE);
   wait(msg);
 
   return msg;
@@ -75,6 +75,8 @@ Message *NetMsg::wait_new()
 {
   Msg *msg;
   uint64_t id;
+
+  global_log.message("Waiting for New Message", Log::NOTICE);
 
   read_lock.lock();
   while(read_new.empty())
@@ -86,6 +88,8 @@ Message *NetMsg::wait_new()
   msgs_lock.lock();
   msg = server_msgs.at(id);
   msgs_lock.unlock();
+
+  global_log.message("Processed New Message", Log::NOTICE);
 
   return msg;
 }
@@ -171,6 +175,8 @@ void NetMsg::writer_thread()
           continue;
         }
 
+      global_log.message("Sending message", Log::NOTICE);
+
       // Get the message data from the id
       msgs_lock.lock();
       if (id.second)
@@ -180,7 +186,8 @@ void NetMsg::writer_thread()
       msgs_lock.unlock();
 
       // Process the message and send to the server
-      net->write8(msg->server);
+      net->write8(!msg->server);
+      global_log.message("Sent server message", Log::NOTICE);
       net->write64(msg->id);
       if (msg->in == NULL)
         {
@@ -224,11 +231,16 @@ void NetMsg::listen_thread()
       uint8_t buff[BUFF];
       Msg *msg;
 
-      while(server = (bool)net->read8())
+      global_log.message("Listening for net events", Log::NOTICE);
+      while(true)
         {
           // Get the message meta data
+          server = (bool)net->read8();
           id = net->read64();
           len = net->read64();
+
+          global_log.message(std::string("Listen thread got message: ") +
+                             std::to_string(id), Log::NOTICE);
 
           // The message was initiated from the server
           if (server)
@@ -339,7 +351,7 @@ NetMsg::Msg *NetMsg::send(const std::string & data, bool del)
 void NetMsg::send(Msg * msg)
 {
   write_lock.lock();
-  write_queue.push(std::pair<uint64_t, bool>(msg->id, false));
+  write_queue.push(std::pair<uint64_t, bool>(msg->id, msg->server));
   write_lock.unlock();
   write_cond.notify_all();
 }

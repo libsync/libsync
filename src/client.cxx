@@ -58,10 +58,12 @@ Client::Client(const Config & conf)
         throw "Unrecognized connector type - " + conf.get_str("conn");
 
       // Get the remote metadata and perform a merge with local metadata
+      global_log.message("Getting the remote metadata", Log::NOTICE);
       remote = conn->get_metadata();
       merge_metadata(*remote);
 
       // Spawn the threads for handling server transactions
+      global_log.message("Spawning Client Threads", Log::NOTICE);
       file_thread = new std::thread(std::bind(&Client::file_master, this));
       pull_thread = new std::thread(std::bind(&Client::pull_master, this));
       watch_thread = new std::thread(std::bind(&Client::watch_master, this));
