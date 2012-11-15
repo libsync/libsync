@@ -22,8 +22,10 @@
 #ifndef __WATCHDOG_HXX__
 #define __WATCHDOG_HXX__
 
+#include <mutex>
 #include <string>
 #include <unordered_map>
+#include <unordered_set>
 
 class Watchdog
 {
@@ -44,16 +46,22 @@ public:
 
   Watchdog();
   ~Watchdog();
+  void close();
 
   void add_watch(const std::string & path, bool recursive = true);
   void del_watch(const std::string & path);
+  void disregard(const std::string & path);
+  void regard(const std::string & path);
 
   Data wait();
 private:
   int inotify;
+  bool closed;
   std::unordered_map<std::string, int> paths;
   std::unordered_map<int, std::string> wds;
   std::string inotify_bytes;
+  std::unordered_set<std::string> no_notify;
+  std::mutex no_notify_lock;
 
   std::string gather_event();
 };

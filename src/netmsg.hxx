@@ -48,6 +48,7 @@ public:
    */
   NetMsg(Net * net);
   ~NetMsg();
+  void close();
 
   /**
    * Sends the string data as the message without expecting a reply

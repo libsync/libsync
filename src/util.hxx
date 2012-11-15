@@ -57,4 +57,19 @@ namespace Write
   void i64(uint64_t i, std::string & data);
 };
 
+namespace File
+{
+  /**
+   * Recursively deletes the file and all of its directories up to sync dir
+   * @param filename The name of the file or directory to remove recursively
+   */
+  void recursive_remove(const std::string & filename);
+
+  /**
+   * Recursively creates the directories from sync dir to the file
+   * @param filename The name of the file to create
+   */
+  void recursive_create(const std::string & filename);
+};
+
 #endif

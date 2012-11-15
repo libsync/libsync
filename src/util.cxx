@@ -20,6 +20,7 @@
 */
 
 #include "util.hxx"
+#include <unistd.h>
 
 uint8_t Read::i8(uint8_t * & data, size_t & size)
 {
@@ -104,4 +105,13 @@ void Write::i64(uint64_t i, std::string & data)
 {
   i = htobe64(i);
   data.append((char*)&i, 8);
+}
+
+void File::recursive_remove(const std::string & filename)
+{
+  remove(filename.c_str());
+}
+
+void File::recursive_create(const std::string & filename)
+{
 }

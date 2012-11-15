@@ -34,19 +34,27 @@ NetMsg::NetMsg(Net * net)
 
 NetMsg::~NetMsg()
 {
-  // Clean up all of the threads
-  done = true;
-  net->close();
-  write_cond.notify_all();
-
-  listen.join();
-  writer.join();
+  close();
 
   // Cleanup leftover messages
   for (auto it = client_msgs.begin(), end = client_msgs.end(); it != end; it++)
     delete it->second;
   for (auto it = server_msgs.begin(), end = server_msgs.end(); it != end; it++)
     delete it->second;
+}
+
+void NetMsg::close()
+{
+  if (!done)
+    {
+      // Clean up all of the threads
+      done = true;
+      net->close();
+      write_cond.notify_all();
+
+      listen.join();
+      writer.join();
+    }
 }
 
 void NetMsg::send_only(const std::string & data)

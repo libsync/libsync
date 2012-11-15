@@ -24,12 +24,14 @@
 
 #include <string>
 #include <thread>
+#include <mutex>
+#include <condition_variable>
+#include <queue>
 
 #include "connector_sock.hxx"
 #include "watchdog.hxx"
 #include "metadata.hxx"
 #include "config.hxx"
-#include "messages.hxx"
 #include "connector.hxx"
 
 class Client
@@ -43,33 +45,24 @@ public:
   Client(const Config & conf);
   ~Client();
 private:
-  enum MsgType
-    {
-    };
   struct Msg
   {
+    bool remote;
+    std::string filename;
+    Metadata::Data file_data;
   };
 
+  bool done;
   std::string sync_dir;
   Config conf;
   Connector *conn;
-  Messages<MsgType, Msg> messages;
   Metadata *meta;
   Watchdog wd;
+  std::queue<Msg> messages;
+  std::mutex message_lock;
+  std::condition_variable_any message_cond;
 
   std::thread *file_thread, *pull_thread, *watch_thread;
-
-  /**
-   * Recursively deletes the file and all of its directories up to sync dir
-   * @param filename The name of the file or directory to remove recursively
-   */
-  void recursive_remove(const std::string & filename) const;
-
-  /**
-   * Recursively creates the directories from sync dir to the file
-   * @param filename The name of the file to create
-   */
-  void recursive_create(const std::string & filename) const;
 
   /**
    * Merges the current metadata with another, and pushes change messages

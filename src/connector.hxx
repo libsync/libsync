@@ -30,13 +30,14 @@
 class Connector
 {
 public:
+  virtual void close() = 0;
   virtual Metadata * get_metadata() = 0;
   virtual void push_file(const std::string & filename, uint64_t modified,
                  std::istream & data, size_t data_size) = 0;
   virtual void get_file(const std::string & filename, uint64_t & modified,
                 std::ostream & data) = 0;
   virtual void delete_file(const std::string & filename,
-                           uint64_t & modified) = 0;
+                           uint64_t modified) = 0;
   virtual std::pair<std::string, Metadata::Data> wait() = 0;
 };
 

@@ -21,9 +21,14 @@
 
 #include <iostream>
 #include <fstream>
+#include <functional>
+#include <sys/types.h>
+#include <utime.h>
+#include <sys/stat.h>
 
 #include "client.hxx"
 #include "log.hxx"
+#include "util.hxx"
 
 Client::Client(const Config & conf)
   : conf(conf), conn(NULL), meta(NULL), file_thread(NULL),
@@ -52,14 +57,14 @@ Client::Client(const Config & conf)
       else
         throw "Unrecognized connector type - " + conf.get_str("conn");
 
-      // Spawn the threads for handling server transactions
-
       // Get the remote metadata and perform a merge with local metadata
       remote = conn->get_metadata();
       merge_metadata(*remote);
 
-      // Spawn the watchdog
-      // Spawn the file and metadata manager
+      // Spawn the threads for handling server transactions
+      file_thread = new std::thread(std::bind(&Client::file_master, this));
+      pull_thread = new std::thread(std::bind(&Client::pull_master, this));
+      watch_thread = new std::thread(std::bind(&Client::watch_master, this));
     }
   catch(const char * e)
     {
@@ -84,6 +89,19 @@ Client::Client(const Config & conf)
 
 Client::~Client()
 {
+  // Forcibly close the connections
+  wd.close();
+  conn->close();
+
+  done = true;
+  message_cond.notify_all();
+
+  // Wait for the threads to finish
+  file_thread->join();
+  pull_thread->join();
+  watch_thread->join();
+
+  // Remove allocated data
   delete file_thread;
   delete pull_thread;
   delete watch_thread;
@@ -91,91 +109,172 @@ Client::~Client()
   delete conn;
 }
 
-void Client::recursive_remove(const std::string & filename) const
-{
-}
-
-void Client::recursive_create(const std::string & filename) const
-{
-}
-
 void Client::merge_metadata(const Metadata & remote)
 {
+  Msg msg;
+
   // Merge all of the local data into the remote data and push messages
-  for (auto it = meta->begin(); it != meta->end(); it++)
+  for (auto it = meta->begin(), end = meta->end(); it != end; it++)
     {
-      Metadata::Data local = remote.get_file(it->first);
-      std::string filename = sync_dir + it->first;
-      if (it->second.modified > local.modified)
-        if(it->second.deleted)
-          recursive_remove(it->first);
-        else
-          {
-            std::ofstream file(filename.c_str(),
-                               std::ios::out | std::ios::binary);
-            conn->get_file(it->first, local.modified, file);
-            file.close();
-          }
-      else if (it->second.modified < local.modified)
-        {
-          std::ifstream file(filename.c_str(),
-                             std::ios::in | std::ios::binary);
-          conn->push_file(it->first, local.modified, file, local.size);
-          file.close();
-        }
+      Metadata::Data rem = remote.get_file(it->first);
+
+      // Is the file at least better than the file on the server
+      if (it->second.modified <= rem.modified)
+        continue;
+
+      // Parse the data into a message
+      msg.filename = it->first;
+      msg.remote = false;
+      msg.file_data = it->second;
+
+      // Push the message onto the stack
+      message_lock.lock();
+      messages.push(msg);
+      message_lock.unlock();
+      message_cond.notify_all();
     }
 
   // Merge the remote data into the local data and pull messages
   for (auto it = remote.begin(), end = remote.end(); it != end; it++)
     {
       Metadata::Data local =  meta->get_file(it->first);
+
+      // Is the file at least better than the local file
+      if (it->second.modified <= local.modified)
+        continue;
+
+      // Parse the data into a message
+      msg.filename = it->first;
+      msg.remote = true;
+      msg.file_data = it->second;
+
+      // Push the message onto the stack
+      message_lock.lock();
+      messages.push(msg);
+      message_lock.unlock();
+      message_cond.notify_all();
     }
 }
 
 void Client::file_master()
 {
+  Msg msg;
+
+  message_lock.lock();
+  while(!done)
+    {
+      // Get the next message
+      if (messages.empty())
+        {
+          message_cond.wait(message_lock);
+          continue;
+        }
+      msg = messages.front();
+      messages.pop();
+      message_lock.unlock();
+
+      // Parse the event
+      std::string full_name = sync_dir + "/" + msg.filename;
+      wd.disregard(full_name);
+      if (msg.remote)
+        if (msg.file_data.deleted)
+          File::recursive_remove(full_name);
+        else
+          {
+            std::ofstream out(full_name, std::ios::out | std::ios::binary);
+            conn->get_file(msg.filename, msg.file_data.modified, out);
+            out.close();
+            struct utimbuf tim;
+            tim.actime = time(NULL);
+            tim.modtime = msg.file_data.modified;
+            utime(full_name.c_str(), &tim);
+          }
+      else
+        if (msg.file_data.deleted)
+          conn->delete_file(msg.filename, msg.file_data.modified);
+        else
+          {
+            struct stat stats;
+            stat(full_name.c_str(), &stats);
+            std::ifstream in(full_name, std::ios::in | std::ios::binary);
+            try
+              {
+                conn->push_file(msg.filename, stats.st_mtime,
+                                in, stats.st_size);
+              }
+            catch (const char * e)
+              {
+                global_log.message(e, Log::WARNING);
+              }
+            catch (const std::string & e)
+              {
+                global_log.message(e, Log::WARNING);
+              }
+            in.close();
+          }
+      wd.regard(full_name);
+
+      // Relock for the next message
+      message_lock.lock();
+   }
+  message_lock.unlock();
 }
 
 void Client::pull_master()
 {
+  std::pair<std::string, Metadata::Data> data;
+  try
+    {
+      while(true)
+        {
+          // Wait for the message
+          data = conn->wait();
+
+          // Parse the message
+          Msg msg;
+          msg.remote = true;
+          msg.filename = data.first;
+          msg.file_data = data.second;
+
+          // Push the message onto the stack
+          message_lock.lock();
+          messages.push(msg);
+          message_lock.unlock();
+          message_cond.notify_all();
+        }
+    }
+  catch(const char * e)
+    {}
+  catch(const std::string & e)
+    {}
 }
 
 void Client::watch_master()
 {
-  while(true)
+  Msg msg;
+
+  try
     {
-      try
+      while(true)
         {
+          // Wait for the watchdog to return events
           Watchdog::Data data = wd.wait();
-          data.filename = data.filename.substr(sync_dir.length());
-          if (data.status == Watchdog::FileStatus::modified)
-            {
-              meta->modify_file(data.filename, data.modified);
-              std::ifstream file((sync_dir + data.filename).c_str(),
-                                 std::ios::in | std::ios::binary);
-              conn->push_file(data.filename, data.modified, file, data.size);
-              file.close();
-            }
-          else
-            {
-              meta->delete_file(data.filename, data.modified);
-              conn->delete_file(data.filename, data.modified);
-            }
-        }
-      catch(const char * e)
-        {
-          global_log.message(e, 1);
-        }
-      catch(const std::string & e)
-        {
-          global_log.message(e, 1);
-        }
+
+          // Parse the event into a file event
+          msg.remote = false;
+          msg.filename = data.filename.substr(sync_dir.length());
+          msg.file_data.modified = data.modified;
+          msg.file_data.deleted = data.status == Watchdog::FileStatus::deleted;
+
+          // Push the message onto the stack
+          message_lock.lock();
+          messages.push(msg);
+          message_lock.unlock();
+          message_cond.notify_all();
+         }
     }
-  // Retrieve the first event
-
-  // Wait to ensure we have no duplicates
-
-  // Remove the duplicate events
-
-  // Send the events to the file thread
+  catch(const char * e)
+    {}
+  catch(const std::string & e)
+    {}
 }

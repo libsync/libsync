@@ -36,6 +36,7 @@
 #define BUFF 4096
 
 Watchdog::Watchdog()
+  : closed(false)
 {
   inotify = inotify_init();
   if (inotify < 0)
@@ -44,9 +45,23 @@ Watchdog::Watchdog()
 
 Watchdog::~Watchdog()
 {
-  for (auto it = paths.begin(); it != paths.end(); it++)
-    inotify_rm_watch(inotify, it->second);
-  close(inotify);
+  close();
+}
+
+static void local_close(int fd)
+{
+  close(fd);
+}
+
+void Watchdog::close()
+{
+  if (!closed)
+    {
+      for (auto it = paths.begin(); it != paths.end(); it++)
+        inotify_rm_watch(inotify, it->second);
+      local_close(inotify);
+      closed = true;
+    }
 }
 
 void Watchdog::add_watch(const std::string & path, bool recursive)
@@ -87,21 +102,40 @@ void Watchdog::del_watch(const std::string & path)
     throw std::string("inotify del: ") + strerror(errno);
 }
 
+void Watchdog::disregard(const std::string & path)
+{
+  no_notify_lock.lock();
+  no_notify.insert(path);
+  no_notify_lock.unlock();
+}
+
+void Watchdog::regard(const std::string & path)
+{
+  no_notify_lock.lock();
+  no_notify.erase(path);
+  no_notify_lock.unlock();
+}
+
 Watchdog::Data Watchdog::wait()
 {
   struct inotify_event * event = NULL;
   std::string event_str;
+  Data data;
 
   // Get events until we have a valid one
-  while (event == NULL || event->mask & IN_IGNORED)
+  no_notify_lock.lock();
+  while (event == NULL || event->mask & IN_IGNORED ||
+         no_notify.count(data.filename) > 0)
     {
+      no_notify_lock.unlock();
       event_str = gather_event();
       event = (struct inotify_event *)event_str.c_str();
+      data.filename = wds.at(event->wd) + "/" + event->name;
+      no_notify_lock.lock();
     }
+  no_notify_lock.unlock();
 
   // Parse the event into data struct
-  Data data;
-  data.filename = wds.at(event->wd) + "/" + event->name;
   if (event->mask & (IN_DELETE | IN_DELETE_SELF | IN_MOVED_FROM))
     data.status = FileStatus::deleted;
   else

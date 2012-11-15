@@ -41,15 +41,26 @@
 SockConnector::SockConnector(const std::string & host, uint16_t port,
                              const std::string & user, const std::string & pass,
                              bool reg)
-  : client(host, port), user(user), pass(pass), net(NULL), netmsg(NULL)
+  : closed(false), client(host, port), user(user), pass(pass),
+    net(NULL), netmsg(NULL)
 {
   connect(reg);
 }
 
 SockConnector::~SockConnector()
 {
+  close();
   delete netmsg;
   delete net;
+}
+
+void SockConnector::close()
+{
+  if (!closed)
+    {
+      netmsg->close();
+      closed = true;
+    }
 }
 
 Metadata * SockConnector::get_metadata()
@@ -134,7 +145,7 @@ void SockConnector::get_file(const std::string & filename, uint64_t & modified,
 }
 
 void SockConnector::delete_file(const std::string & filename,
-                                uint64_t & modified)
+                                uint64_t modified)
 {
   // Send the command info
   std::string cmd;

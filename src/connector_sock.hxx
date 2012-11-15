@@ -39,16 +39,18 @@ public:
                 const std::string & user, const std::string & pass,
                 bool reg = false);
   ~SockConnector();
+  void close();
 
   Metadata * get_metadata();
   void push_file(const std::string & filename, uint64_t modified,
                  std::istream & data, size_t data_size);
   void get_file(const std::string & filename, uint64_t & modified,
                 std::ostream & data);
-  void delete_file(const std::string & filename, uint64_t & modified);
+  void delete_file(const std::string & filename, uint64_t modified);
   std::pair<std::string, Metadata::Data> wait();
 
 private:
+  bool closed;
   NetClient client;
   std::string user, pass;
   Net * net;
