@@ -142,6 +142,7 @@ void exec_command(const std::string & user_dir, Message * msg,
       size_t size;
       uint8_t * dat = data->mtd->serialize(size);
       std::string sdat((char*)dat, size);
+      global_log.message(std::to_string(size), Log::NOTICE);
       msg->set(sdat);
       netmsg->reply_only(msg);
     }

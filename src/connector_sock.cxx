@@ -21,6 +21,7 @@
 
 #include "connector_sock.hxx"
 #include "util.hxx"
+#include "log.hxx"
 
 #define HAND_LOGIN 0
 #define HAND_REG 1
@@ -73,6 +74,7 @@ Metadata * SockConnector::get_metadata()
   Write::i8(CMD_META, cmd);
   Message *msg = netmsg->send_and_wait(cmd);
 
+  global_log.message(std::to_string(msg->get().length()), Log::NOTICE);
   Metadata * ret = new Metadata((uint8_t*)msg->get().data(),
                                 msg->get().length());
 

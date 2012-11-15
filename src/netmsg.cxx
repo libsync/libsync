@@ -241,6 +241,8 @@ void NetMsg::listen_thread()
 
           global_log.message(std::string("Listen thread got message: ") +
                              std::to_string(id), Log::NOTICE);
+          global_log.message(std::string("Message Len: ") + std::to_string(len),
+                             Log::NOTICE);
 
           // The message was initiated from the server
           if (server)
@@ -289,6 +291,7 @@ void NetMsg::listen_thread()
             }
 
           // Process the message
+          msg->msg.clear();
           if (msg->out != NULL)
             {
               while(len > 0)
@@ -299,7 +302,6 @@ void NetMsg::listen_thread()
                   len -= red;
                 }
               msg->out = NULL;
-              msg->msg = "";
             }
           else
             {
