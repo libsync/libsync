@@ -225,7 +225,7 @@ void NetMsg::listen_thread()
 {
   try
     {
-      bool server, ne = false;
+      bool server, ne;
       uint64_t id, len, red;
       uint8_t buff[BUFF];
       Msg *msg;
@@ -237,6 +237,7 @@ void NetMsg::listen_thread()
           server = (bool)net->read8();
           id = net->read64();
           len = net->read64();
+          ne = false;
 
           global_log.message(std::string("Listen thread got message: ") +
                              std::to_string(id), Log::NOTICE);
@@ -321,6 +322,8 @@ void NetMsg::listen_thread()
             server_read_done.insert(id);
           else
             client_read_done.insert(id);
+          global_log.message(std::to_string(ne),
+                             Log::DEBUG);
           read_lock.unlock();
           read_cond.notify_all();
 
