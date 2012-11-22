@@ -22,6 +22,7 @@
 #include <iostream>
 #include <fstream>
 #include <functional>
+#include <chrono>
 #include <sys/types.h>
 #include <utime.h>
 #include <sys/stat.h>
@@ -183,7 +184,7 @@ void Client::file_master()
       message_lock.unlock();
 
       // Parse the event
-      std::string full_name = sync_dir + "/" + msg.filename;
+      std::string full_name = sync_dir + msg.filename;
       wd.disregard(full_name);
       if (msg.remote)
         if (msg.file_data.deleted)
@@ -215,9 +216,12 @@ void Client::file_master()
           {
             global_log.message(std::string("Local Modify: ") + full_name,
                                Log::NOTICE);
-            struct stat stats;
-            stat(full_name.c_str(), &stats);
             std::ifstream in(full_name, std::ios::in | std::ios::binary);
+            struct stat stats;
+            std::this_thread::sleep_for(std::chrono::seconds(1));
+            stat(full_name.c_str(), &stats);
+            std::cout << full_name.c_str() << ": " << stats.st_size << std::endl;
+
             try
               {
                 conn->push_file(msg.filename, stats.st_mtime,

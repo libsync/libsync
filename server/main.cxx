@@ -250,8 +250,14 @@ void exec_command(const std::string & user_dir, Message * msg,
       // Update the metadata
       data->mtd->delete_file(filename, modified);
 
-      // Propagate the deletion to all clients
+      // Reply Success
       std::string cmd;
+      Write::i8(0, cmd);
+      msg->set(cmd);
+      netmsg->reply_only(msg);
+
+      // Propagate the deletion to all clients
+      cmd.clear();
       Write::i32(filename.length(), cmd);
       cmd.append(filename);
       Write::i64(modified, cmd);

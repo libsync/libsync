@@ -161,6 +161,7 @@ void SockConnector::delete_file(const std::string & filename,
   size_t ret_len = msg->get().length();
   if (Read::i8(ret, ret_len) != 0)
     throw "Server failed to delete file";
+  netmsg->destroy(msg);
 }
 
 std::pair<std::string, Metadata::Data> SockConnector::wait()
