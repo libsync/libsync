@@ -183,28 +183,46 @@ void Client::file_master()
       messages.pop();
       message_lock.unlock();
 
+      // Is this event old?
+      Metadata::Data data = meta->get_file(msg.filename);
+      if (msg.file_data.deleted == data.deleted &&
+          msg.file_data.modified < data.modified)
+        {
+          global_log.message(std::string("Skipped Event: ") +
+                             msg.filename, Log::NOTICE);
+          message_lock.lock();
+          continue;
+        }
+
       // Parse the event
       std::string full_name = sync_dir + msg.filename;
-      wd.disregard(full_name);
       if (msg.remote)
-        if (msg.file_data.deleted)
-          {
-            global_log.message(std::string("Remote Delete: ") + full_name,
-                               Log::NOTICE);
-            File::recursive_remove(full_name);
-          }
-        else
-          {
-            global_log.message(std::string("Remote Modify: ") + full_name,
-                               Log::NOTICE);
-            std::ofstream out(full_name, std::ios::out | std::ios::binary);
-            conn->get_file(msg.filename, msg.file_data.modified, out);
-            out.close();
-            struct utimbuf tim;
-            tim.actime = time(NULL);
-            tim.modtime = msg.file_data.modified;
-            utime(full_name.c_str(), &tim);
-          }
+        {
+          // The file is remotely changed so disable local events on it
+          wd.disregard(full_name);
+
+          if (msg.file_data.deleted)
+            {
+              global_log.message(std::string("Remote Delete: ") + full_name,
+                                 Log::NOTICE);
+              File::recursive_remove(full_name);
+            }
+          else
+            {
+              global_log.message(std::string("Remote Modify: ") + full_name,
+                                 Log::NOTICE);
+              std::ofstream out(full_name, std::ios::out | std::ios::binary);
+              conn->get_file(msg.filename, msg.file_data.modified, out);
+              out.close();
+              struct utimbuf tim;
+              tim.actime = time(NULL);
+              tim.modtime = msg.file_data.modified;
+              utime(full_name.c_str(), &tim);
+            }
+
+          // Allow events again
+          wd.regard(full_name);
+        }
       else
         if (msg.file_data.deleted)
           {
@@ -218,10 +236,7 @@ void Client::file_master()
                                Log::NOTICE);
             std::ifstream in(full_name, std::ios::in | std::ios::binary);
             struct stat stats;
-            std::this_thread::sleep_for(std::chrono::seconds(1));
             stat(full_name.c_str(), &stats);
-            std::cout << full_name.c_str() << ": " << stats.st_size << std::endl;
-
             try
               {
                 conn->push_file(msg.filename, stats.st_mtime,
@@ -237,7 +252,6 @@ void Client::file_master()
               }
             in.close();
           }
-      wd.regard(full_name);
       global_log.message(std::string("Finished Processing: ") + full_name,
                          Log::NOTICE);
 

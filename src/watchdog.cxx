@@ -156,13 +156,10 @@ Watchdog::Data Watchdog::wait()
         }
 
       no_notify_lock.lock();
+      global_log.message(std::string("Event: ")+data.filename, Log::DEBUG);
     }
   no_notify_old.erase(data.filename);
   no_notify_lock.unlock();
-
-  // Get rid of duplicate events
-  disregard(data.filename);
-  regard(data.filename);
 
   global_log.message(std::string("Change event ") + data.filename, Log::NOTICE);
 

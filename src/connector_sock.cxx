@@ -101,6 +101,8 @@ void SockConnector::push_file(const std::string & filename, uint64_t modified,
   if (Read::i8(ret, ret_len) != 0)
     {
       netmsg->destroy(msg);
+      global_log.message(std::string("Server Skipped: ") + filename,
+                         Log::NOTICE);
       return;
     }
 

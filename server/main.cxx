@@ -157,11 +157,14 @@ void exec_command(const std::string & user_dir, Message * msg,
 
       // If the metadata has changed kill it
       std::string cmd;
-      if (data->mtd->get_file(filename).modified >= modified)
+      if (data->mtd->get_file(filename).modified > modified)
         {
           Write::i8(1, cmd);
           msg->set(cmd);
           netmsg->reply_only(msg);
+          global_log.message(std::string("Skipped Push: ") + filename,
+                             Log::NOTICE);
+          return;
         }
 
       // Read all of the file contents and push to file
