@@ -1,1 +1,3 @@
 use select per user maybe
+Server - implement netmsg as a pool of fd's and use select for more scalability
+if transfers become the bottleneck use a thread pool to handle reading and writing from the sockets with select handling the initial data flows
