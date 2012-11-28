@@ -25,6 +25,7 @@
 #include "crypt.hxx"
 
 Crypt::Crypt(const std::string & key)
+  : cipher()
 {
   key_len = key.length();
   this->key = (unsigned char *) malloc(key_len);
@@ -113,4 +114,13 @@ void Crypt::clear()
 {
   munlock(key, key_len);
   free(key);
+}
+
+void Crypt::derive_key(const std::string & mat,
+                       unsigned char *key, size_t key_len)
+{
+}
+
+void Crypt::rand(unsigned char *data, size_t size)
+{
 }

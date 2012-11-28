@@ -65,6 +65,8 @@ private:
 
   void copy(const Crypt & crypt);
   void clear();
+  void derive_key(const std::string & mat, unsigned char *key, size_t key_len);
+  void rand(unsigned char *data, size_t size);
 };
 
 #endif
