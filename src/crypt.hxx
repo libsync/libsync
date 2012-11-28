@@ -62,6 +62,7 @@ private:
 
   size_t key_len;
   unsigned char * key;
+  const EVP_CIPHER *cipher;
 
   void copy(const Crypt & crypt);
   void clear();

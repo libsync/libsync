@@ -21,7 +21,8 @@ ACLOCAL_AMFLAGS = -I ../m4
 lib_LTLIBRARIES = libsync.la
 libsync_la_SOURCES = net.cxx config.cxx log.cxx metadata.cxx watchdog.cxx connector_sock.cxx messages.cxx client.cxx util.cxx netmsg.cxx crypt.cxx
 libsync_la_LDFLAGS = -version-info 0:1:0
-libsync_la_LIBADD = $(BOOST_REGEX_LIBS)
+AM_CXXFLAGS = $(LIBDEPS_CXXFLAGS)
+libsync_la_LIBADD = $(BOOST_REGEX_LIBS) $(LIBDEPS_LIBS)
 
 #TEST SECTION
 check_PROGRAMS = log_test config_test net_test watchdog_test connector_sock_test metadata_test

@@ -25,7 +25,7 @@
 #include "crypt.hxx"
 
 Crypt::Crypt(const std::string & key)
-  : cipher()
+  : cipher(EVP_aes_256_cbc())
 {
   key_len = key.length();
   this->key = (unsigned char *) malloc(key_len);
