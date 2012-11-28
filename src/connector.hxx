@@ -30,6 +30,7 @@
 class Connector
 {
 public:
+  virtual ~Connector() {}
   virtual void close() = 0;
   virtual Metadata * get_metadata() = 0;
   virtual void push_file(const std::string & filename, uint64_t modified,

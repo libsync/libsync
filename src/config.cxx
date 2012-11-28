@@ -104,10 +104,12 @@ void Config::read(const std::string & filename)
               value_size++;
             }
           if (!isspace(buff[i]) || escaped || quote_open)
-            if (key_segment)
-              key_current = key_size;
-            else
-              value_current = value_size;
+            {
+              if (key_segment)
+                key_current = key_size;
+              else
+                value_current = value_size;
+            }
         }
 
   file.close();

@@ -219,7 +219,7 @@ NetServer::~NetServer()
 
 static int local_accept(int sockfd, struct sockaddr * addr, socklen_t *addrlen)
 {
-  accept(sockfd, addr, addrlen);
+  return accept(sockfd, addr, addrlen);
 }
 
 Net * NetServer::accept()
@@ -274,7 +274,7 @@ NetClient::NetClient(const std::string & host, uint16_t port) :
 static int local_connect(int socket, const struct sockaddr * address,
                          socklen_t address_len)
 {
-  connect(socket, address, address_len);
+  return connect(socket, address, address_len);
 }
 
 Net * NetClient::connect()
