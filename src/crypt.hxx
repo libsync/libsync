@@ -61,7 +61,7 @@ private:
   };
 
   size_t key_len;
-  uint8_t * key;
+  unsigned char * key;
 
   void copy(const Crypt & crypt);
   void clear();

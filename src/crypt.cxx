@@ -27,7 +27,7 @@
 Crypt::Crypt(const std::string & key)
 {
   key_len = key.length();
-  this->key = (uint8_t *) malloc(key_len);
+  this->key = (unsigned char *) malloc(key_len);
   mlock(this->key, key_len);
   memcpy(this->key, key.data(), key_len);
 }
@@ -104,7 +104,7 @@ size_t Crypt::hash_len()
 void Crypt::copy(const Crypt & crypt)
 {
   key_len = crypt.key_len;
-  key = (uint8_t *) malloc(key_len);
+  key = (unsigned char *) malloc(key_len);
   mlock(key, key_len);
   memcpy(key, crypt.key, key_len);
 }
