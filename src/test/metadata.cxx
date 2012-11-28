@@ -57,7 +57,7 @@ TEST(MetadataTest, BasicMods)
 {
   Metadata meta("test/config");
   meta.delete_file("/basic", 10);
-  meta.new_file("/bin", 11);
+  meta.new_file("/bin", 0, 11);
 
   Metadata::Data f = meta.get_file("/basic");
   EXPECT_EQ(10, f.modified);
@@ -72,7 +72,7 @@ TEST(MetadataTest, ComplexSerial)
 {
   Metadata meta("test/config");
   meta.delete_file("/basic", 10);
-  meta.new_file("/bin", 11);
+  meta.new_file("/bin", 0, 11);
   size_t len;
   uint8_t * serial = meta.serialize(len);
   Metadata meta2(serial, len);

@@ -72,7 +72,7 @@ void read_file(const char * filename, std::stringstream & ss)
   std::ifstream file(filename, std::ios::in | std::ios::binary);
   char buffer[2048];
   ssize_t size;
-  while(size = file.readsome(buffer, 2048))
+  while((size = file.readsome(buffer, 2048)) > 0)
     ss.write(buffer, size);
   file.close();
   remove(filename);
