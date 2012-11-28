@@ -22,14 +22,49 @@
 #ifndef __CRYPT_HXX__
 #define __CRYPT_HXX__
 
+#include <cstring>
 #include <iostream>
+#include <string>
 
 class Crypt
 {
-};
+public:
+  Crypt(const std::string & key);
+  Crypt(const Crypt & crypt);
+  ~Crypt();
+  Crypt & operator=(const Crypt & crypt);
 
-class cstream : public std::iostream
-{
+  std::iostream * wrap(const std::iostream & stream);
+  std::istream * wrap(const std::istream & stream);
+  std::ostream * wrap(const std::ostream & stream);
+
+  std::string encrypt(const std::string & ptext);
+  std::string decrypt(const std::string & ctext);
+
+  std::string hash(const std::string & msg);
+  std::string sign(const std::string & msg);
+  bool check(const std::string & sig);
+
+  size_t enc_len(size_t len);
+  size_t hash_len();
+private:
+  class ocstream : public std::ostream
+  {
+  };
+
+  class icstream : public std::istream
+  {
+  };
+
+  class cstream : public icstream, public ocstream
+  {
+  };
+
+  size_t key_len;
+  uint8_t * key;
+
+  void copy(const Crypt & crypt);
+  void clear();
 };
 
 #endif
