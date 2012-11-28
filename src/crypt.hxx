@@ -60,9 +60,10 @@ private:
   {
   };
 
-  size_t key_len;
-  unsigned char * key;
-  const EVP_CIPHER *cipher;
+  size_t key_len, iv_len;
+  unsigned char *key, *iv;
+  const EVP_CIPHER *c_func;
+  const EVP_MD *h_func;
 
   void copy(const Crypt & crypt);
   void clear();
