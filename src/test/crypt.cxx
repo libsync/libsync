@@ -156,10 +156,28 @@ TEST(CryptTest, DecStreamShort)
   delete cs;
 }
 
-TEST(CryptTest, DecStreamFailRand)
+TEST(CryptTest, DecStreamFailGarbage)
 {
+  Crypt c(KEY);
+  CryptStream *cs = c.dcstream();
+  std::string enc = "Impossible" + c.sign("blah");
+
+  // Create the encrypted contents
+  cs->write(enc.data(), enc.length());
+  ASSERT_ANY_THROW(cs->write(NULL, 0));
+
+  delete cs;
 }
 
 TEST(CryptTest, DecStreamFailSig)
 {
+  Crypt c(KEY);
+  CryptStream *cs = c.dcstream();
+  std::string in = "I am awesome", enc = c.encrypt(in) + c.sign("blah");
+
+  // Create the encrypted contents
+  cs->write(enc.data(), enc.length());
+  ASSERT_ANY_THROW(cs->write(NULL, 0));
+
+  delete cs;
 }

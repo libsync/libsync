@@ -75,6 +75,7 @@ ssize_t CryptStream::write(const char * buff, size_t size)
       if (EVP_DecryptFinal_ex(&cipher, data, &dec_len) != 1)
         throw "Failed to decrypt final block";
       stream.write((char*)data, dec_len);
+      HMAC_Update(&hmac, data, dec_len);
 
       // Check the HMAC sum against the provided one
       HMAC_Final(&hmac, data, NULL);
