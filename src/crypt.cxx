@@ -299,20 +299,18 @@ std::string Crypt::decrypt(const std::string & ctext)
 
 std::string Crypt::hash(const std::string & msg)
 {
-  std::string out;
+  size_t md_size = EVP_MD_size(h_func);
+  unsigned char out[md_size];
   EVP_MD_CTX md;
-
-  // Setup the string
-  out.resize(EVP_MD_size(h_func));
 
   // Hash the message
   EVP_MD_CTX_init(&md);
   EVP_DigestInit_ex(&md, h_func, NULL);
   EVP_DigestUpdate(&md, (unsigned char *)msg.data(), msg.length());
-  EVP_DigestFinal_ex(&md, (unsigned char *)out.data(), NULL);
+  EVP_DigestFinal_ex(&md, out, NULL);
   EVP_MD_CTX_cleanup(&md);
 
-  return out;
+  return std::string((char*)out, md_size);
 }
 
 std::string Crypt::sign(const std::string & msg)
