@@ -32,22 +32,67 @@
 class Crypt
 {
 public:
+  /**
+   * Creates a new crypto object with the given key material
+   * @param key The keying material
+   */
   Crypt(const std::string & key);
   Crypt(const Crypt & crypt);
   ~Crypt();
   Crypt & operator=(const Crypt & crypt);
 
+  /**
+   * Wraps the stream in a crypto stream for encrypting traffic
+   * @param stream The input stream to encrypt
+   * @return The encryption stream
+   */
   std::istream * wrap(std::istream * stream);
+
+  /**
+   * Wraps the stream in a crypto stream for decrypting traffic
+   * @param stream The output stream to decrypt into
+   * @return The decrypting stream
+   */
   std::ostream * wrap(std::ostream * stream);
 
+  /**
+   * Converts the plaintext into an encrypted string using the internal key
+   * @param ptext The plain text to encrypt
+   * @return The cipher text of the message
+   */
   std::string encrypt(const std::string & ptext);
+
+  /**
+   * Converts the ciphertext into a decrypted plaintext string
+   * @param ctext The ciphertext to decrypt
+   * @return The plaintext message
+   */
   std::string decrypt(const std::string & ctext);
 
+  /**
+   * A fixed length one way function which computes a unique value for a message
+   * @param msg The message to hash
+   * @return The hashed bytes of the message
+   */
   std::string hash(const std::string & msg);
-  std::string sign(const std::string & msg);
-  bool check(const std::string & sig);
 
+  /**
+   * A fixed length signing algorithm based on the hash and internal key
+   * @param msg The message to sign
+   * @return The signature of the message
+   */
+  std::string sign(const std::string & msg);
+
+  /**
+   * Gets the length of an encrypted block for the plaintext
+   * @param len The length of the plaintext
+   * @return The length of the corresponding ciphertext
+   */
   size_t enc_len(size_t len);
+
+  /**
+   * @return The length of a hash string
+   */
   size_t hash_len();
 private:
   class ocstream : public std::ostream

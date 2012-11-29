@@ -49,11 +49,12 @@ Crypt::~Crypt()
 
 Crypt & Crypt::operator=(const Crypt & crypt)
 {
-  if (this == &crypt)
-    return *this;
-
-  clear();
-  copy(crypt);
+  if (this != &crypt)
+    {
+      clear();
+      copy(crypt);
+    }
+  return *this;
 }
 
 std::istream * Crypt::wrap(std::istream * stream)
