@@ -55,6 +55,7 @@ ssize_t CryptStream::read(char * buff, size_t size)
   return stream.readsome(buff, size);
 }
 
+#include <iostream>
 ssize_t CryptStream::write(const char * buff, size_t size)
 {
   // If nothing is written finalize decrypt
@@ -316,20 +317,18 @@ std::string Crypt::hash(const std::string & msg)
 
 std::string Crypt::sign(const std::string & msg)
 {
-  std::string out;
+  size_t md_size = EVP_MD_size(h_func);
+  unsigned char out[md_size];
   HMAC_CTX hmac;
-
-  // Setup the string
-  out.resize(EVP_MD_size(h_func));
 
   // Hash the message
   HMAC_CTX_init(&hmac);
   HMAC_Init_ex(&hmac, key, key_len, h_func, NULL);
   HMAC_Update(&hmac, (unsigned char *)msg.data(), msg.length());
-  HMAC_Final(&hmac, (unsigned char *)out.data(), NULL);
+  HMAC_Final(&hmac, out, NULL);
   HMAC_CTX_cleanup(&hmac);
 
-  return out;
+  return std::string((char*)out, md_size);
 }
 
 size_t Crypt::enc_len(size_t len)
