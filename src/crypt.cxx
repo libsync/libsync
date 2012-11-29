@@ -64,7 +64,7 @@ ssize_t CryptStream::write(const char * buff, size_t size)
         throw "Never got an IV";
 
       // Make sure we have an HMAC sum in the stream
-      size_t md_size = EVP_MD_size(h_func);
+      size_t md_size = EVP_MD_size(h_func), tmp_size = 0;
       if (decbuff.tellp() - decbuff.tellg() != md_size)
         throw "Decrypt stream missing hmac sum";
 
@@ -77,7 +77,8 @@ ssize_t CryptStream::write(const char * buff, size_t size)
 
       // Check the HMAC sum against the provided one
       HMAC_Final(&hmac, data, NULL);
-      decbuff.readsome((char*)data2, md_size);
+      while (tmp_size < md_size)
+        tmp_size += decbuff.readsome((char*)data2+tmp_size, md_size-tmp_size);
       if (memcmp(data, data2, md_size) != 0)
         throw "HMAC sums do not match";
     }
@@ -86,16 +87,18 @@ ssize_t CryptStream::write(const char * buff, size_t size)
       decbuff.write(buff, size);
 
       // First get the iv from the stream
-      ssize_t left = decbuff.tellp() - decbuff.tellg();
+      ssize_t left = decbuff.tellp() - decbuff.tellg(), in_len;
       if (iv == NULL)
         if (left >= iv_len)
-        {
-          iv = new unsigned char[iv_len];
-          decbuff.readsome((char*)iv, iv_len);
-          left -= iv_len;
-          EVP_DecryptInit_ex(&cipher, c_func, NULL, key, iv);
-          HMAC_Init_ex(&hmac, key, key_len, h_func, NULL);
-        }
+          {
+            iv = new unsigned char[iv_len];
+            in_len = 0;
+            while (in_len < iv_len)
+              in_len += decbuff.readsome((char*)iv+in_len, iv_len-in_len);
+            left -= iv_len;
+            EVP_DecryptInit_ex(&cipher, c_func, NULL, key, iv);
+            HMAC_Init_ex(&hmac, key, key_len, h_func, NULL);
+          }
         else
           return size;
 
@@ -108,7 +111,7 @@ ssize_t CryptStream::write(const char * buff, size_t size)
       int out_len = left + EVP_CIPHER_block_size(c_func);
       unsigned char *out = new unsigned char[out_len],
         *in = new unsigned char[left];
-      size_t in_len = 0;
+      in_len = 0;
       while (in_len < left)
         in_len += decbuff.readsome((char*)in + in_len, left-in_len);
       if (EVP_DecryptUpdate(&cipher, out, &out_len, in, left) != 1)
