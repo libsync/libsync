@@ -22,12 +22,54 @@
 #ifndef __CRYPT_HXX__
 #define __CRYPT_HXX__
 
+#include <sstream>
 #include <cstring>
-#include <iostream>
 #include <string>
 
 #include <openssl/evp.h>
 #include <openssl/hmac.h>
+
+class CryptStream
+{
+public:
+  /**
+   * Creates a new crypto stream from the given key material and crypto funcs
+   * @param dec True for a decryption stream and false for encryption
+   * @param key The key data
+   * @param key_len The key data length
+   * @param c_func The openssl cipher function for crypting data
+   * @param h_func The openssl hash function for hashing data
+   */
+  CryptStream(bool dec, unsigned char *key, size_t key_len,
+              const EVP_CIPHER *c_func, const EVP_MD *h_func);
+  ~CryptStream();
+
+  /**
+   * Reads data from the stream into a buffer
+   * @param buff The buffer to read bytes into
+   * @param size The size of the buffer
+   * @return The amount of bytes read
+   */
+  ssize_t read(char * buff, size_t size);
+
+  /**
+   * Writes data from the buffer into the stream
+   * @param buff The buffer to read bytes from
+   * @param size The size of the buffer
+   * @param The amount of bytes written to the stream
+   */
+  ssize_t write(const char * buff, size_t size);
+private:
+  bool dec;
+  const EVP_CIPHER *c_func;
+  const EVP_MD *h_func;
+  std::stringstream stream;
+  std::stringstream decbuff;
+  EVP_CIPHER_CTX cipher;
+  HMAC_CTX hmac;
+  unsigned char *key, *iv;
+  size_t key_len, iv_len;
+};
 
 class Crypt
 {
@@ -42,18 +84,16 @@ public:
   Crypt & operator=(const Crypt & crypt);
 
   /**
-   * Wraps the stream in a crypto stream for encrypting traffic
-   * @param stream The input stream to encrypt
+   * Creates a stream for encrypting traffic
    * @return The encryption stream
    */
-  std::istream * wrap(std::istream * stream);
+  CryptStream *ecstream();
 
   /**
-   * Wraps the stream in a crypto stream for decrypting traffic
-   * @param stream The output stream to decrypt into
-   * @return The decrypting stream
+   * Creates a stream for decrypting traffic
+   * @return The decryption stream
    */
-  std::ostream * wrap(std::ostream * stream);
+  CryptStream *dcstream();
 
   /**
    * Converts the plaintext into an encrypted string using the internal key
@@ -94,47 +134,14 @@ public:
    * @return The length of a hash string
    */
   size_t hash_len();
+
+  /**
+   * Fills the data buffer with cryptographic secure random data
+   * @param data The data buffer to write into
+   * @param size The size of the buffer
+   */
+  static void rand(unsigned char *data, size_t size);
 private:
-  class ocstream : public std::ostream
-  {
-  public:
-    ocstream(const unsigned char *key, size_t key_len,
-             std::ostream * ostream,
-             const EVP_CIPHER *c_func, const EVP_MD *h_func);
-    ~ocstream();
-    std::ostream & write(const char *s, std::streamsize n);
-  private:
-    std::ostream *ostream;
-    unsigned char *key, *iv;
-    size_t key_len, iv_len;
-    EVP_CIPHER_CTX cipher;
-    HMAC_CTX hmac;
-  };
-
-  class icstream : public std::istream
-  {
-  public:
-    icstream(const unsigned char *key, size_t key_len,
-             std::istream * istream,
-             const EVP_CIPHER *c_func, const EVP_MD *h_func);
-    ~icstream();
-    std::streamsize readsome(char *s, std::streamsize n);
-  private:
-    std::istream *istream;
-    unsigned char *key, *iv;
-    size_t key_len, iv_len;
-    EVP_CIPHER_CTX cipher;
-    HMAC_CTX hmac;
-    bool first, last;
-  };
-
-  class cstreambuf : public std::streambuf
-  {
-  public:
-    cstreambuf();
-    ~cstreambuf();
-  };
-
   size_t key_len;
   unsigned char *key;
   const EVP_CIPHER *c_func;
@@ -144,7 +151,6 @@ private:
   volatile void clear();
   void derive_key(const std::string & mat, const std::string & salt,
                   size_t iters, unsigned char *key, size_t key_len);
-  static void rand(unsigned char *data, size_t size);
 };
 
 #endif

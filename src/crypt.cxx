@@ -27,6 +27,139 @@
 #include "util.hxx"
 #include "crypt.hxx"
 
+CryptStream::CryptStream(bool dec, unsigned char *key, size_t key_len,
+                         const EVP_CIPHER *c_func, const EVP_MD *h_func)
+  : dec(dec), c_func(c_func), h_func(h_func),
+    iv(NULL), iv_len(EVP_CIPHER_iv_length(c_func))
+{
+  // Setup the key and credentials
+  this->key_len = key_len;
+  this->key = new unsigned char[key_len];
+  mlock(this->key, key_len);
+  memcpy(this->key, key, key_len);
+
+  EVP_CIPHER_CTX_init(&cipher);
+  HMAC_CTX_init(&hmac);
+}
+
+CryptStream::~CryptStream()
+{
+  delete [] key;
+  delete [] iv;
+  HMAC_CTX_cleanup(&hmac);
+  EVP_CIPHER_CTX_cleanup(&cipher);
+}
+
+ssize_t CryptStream::read(char * buff, size_t size)
+{
+  return stream.readsome(buff, size);
+}
+
+ssize_t CryptStream::write(const char * buff, size_t size)
+{
+  // If nothing is written finalize decrypt
+  if (dec && size == 0)
+    {
+      if (iv == NULL)
+        throw "Never got an IV";
+
+      // Make sure we have an HMAC sum in the stream
+      size_t md_size = EVP_MD_size(h_func);
+      if (decbuff.tellp() - decbuff.tellg() != md_size)
+        throw "Decrypt stream missing hmac sum";
+
+      // Finalize the cipher and write the rest of the ciphertext
+      unsigned char data[md_size], data2[md_size];
+      int dec_len = md_size;
+      if (EVP_DecryptFinal_ex(&cipher, data, &dec_len) != 1)
+        throw "Failed to decrypt final block";
+      stream.write((char*)data, dec_len);
+
+      // Check the HMAC sum against the provided one
+      HMAC_Final(&hmac, data, NULL);
+      decbuff.readsome((char*)data2, md_size);
+      if (memcmp(data, data2, md_size) != 0)
+        throw "HMAC sums do not match";
+    }
+  else if (dec)
+    {
+      decbuff.write(buff, size);
+
+      // First get the iv from the stream
+      ssize_t left = decbuff.tellp() - decbuff.tellg();
+      if (iv == NULL)
+        if (left >= iv_len)
+        {
+          iv = new unsigned char[iv_len];
+          decbuff.readsome((char*)iv, iv_len);
+          left -= iv_len;
+          EVP_DecryptInit_ex(&cipher, c_func, NULL, key, iv);
+          HMAC_Init_ex(&hmac, key, key_len, h_func, NULL);
+        }
+        else
+          return size;
+
+      // Make sure we have enough ciphertext and leave hmac intact
+      left -= EVP_MD_size(h_func);
+      if (left <= 0)
+        return size;
+
+      // Process the encrypted ciphertext in the buffer
+      int out_len = left + EVP_CIPHER_block_size(c_func);
+      unsigned char *out = new unsigned char[out_len],
+        *in = new unsigned char[left];
+      size_t in_len = 0;
+      while (in_len < left)
+        in_len += decbuff.readsome((char*)in + in_len, left-in_len);
+      if (EVP_DecryptUpdate(&cipher, out, &out_len, in, left) != 1)
+        {
+          delete [] out;
+          delete [] in;
+          throw "Failed to decrypt more data.";
+        }
+
+      // Write the HMAC and stream
+      HMAC_Update(&hmac, out, out_len);
+      stream.write((char*)out, out_len);
+      delete [] in;
+      delete [] out;
+   }
+  else if (size == 0)
+    {
+      // Finalize the encryption stream
+      int out_len = EVP_MD_size(h_func);
+      unsigned char out[out_len];
+      EVP_EncryptFinal_ex(&cipher, out, &out_len);
+      stream.write((char*)out, out_len);
+
+      // Write the HMAC
+      HMAC_Final(&hmac, out, NULL);
+      stream.write((char*)out, EVP_MD_size(h_func));
+    }
+  else
+    {
+      // First encrypt should write the iv to the stream
+      if (iv == NULL)
+        {
+          iv = new unsigned char[iv_len];
+          Crypt::rand(iv, iv_len);
+          stream.write((char*)iv, iv_len);
+          EVP_EncryptInit_ex(&cipher, c_func, NULL, key, iv);
+          HMAC_Init_ex(&hmac, key, key_len, h_func, NULL);
+        }
+
+      // Encrypt the data given
+      int out_len = size + EVP_CIPHER_block_size(c_func);
+      unsigned char *out = new unsigned char[out_len];
+      EVP_EncryptUpdate(&cipher, out, &out_len, (unsigned char *)buff, size);
+      HMAC_Update(&hmac, (unsigned char *)buff, size);
+      stream.write((char*)out, out_len);
+      delete [] out;
+    }
+
+  return size;
+}
+
 Crypt::Crypt(const std::string & key)
   : c_func(EVP_aes_256_cbc()), h_func(EVP_sha512())
 {
@@ -57,14 +190,14 @@ Crypt & Crypt::operator=(const Crypt & crypt)
   return *this;
 }
 
-std::istream * Crypt::wrap(std::istream * stream)
+CryptStream * Crypt::ecstream()
 {
-  return new icstream(key, key_len, stream, c_func, h_func);
+  return new CryptStream(false, key, key_len, c_func, h_func);
 }
 
-std::ostream * Crypt::wrap(std::ostream * stream)
+CryptStream * Crypt::dcstream()
 {
-  return new ocstream(key, key_len, stream, c_func, h_func);
+  return new CryptStream(true, key, key_len, c_func, h_func);
 }
 
 std::string Crypt::encrypt(const std::string & ptext)
@@ -205,99 +338,6 @@ size_t Crypt::enc_len(size_t len)
 size_t Crypt::hash_len()
 {
   return EVP_MD_size(h_func);
-}
-
-Crypt::ocstream::ocstream(const unsigned char *key, size_t key_len,
-                          std::ostream * ostream,
-                          const EVP_CIPHER *c_func, const EVP_MD *h_func)
-  : ostream(ostream)
-{
-  EVP_CIPHER_CTX_init(&cipher);
-}
-
-Crypt::ocstream::~ocstream()
-{
-  EVP_CIPHER_CTX_cleanup(&cipher);
-}
-
-std::ostream & Crypt::ocstream::write(const char *s, std::streamsize n)
-{
-}
-
-Crypt::icstream::icstream(const unsigned char *key, size_t key_len,
-                          std::istream * istream,
-                          const EVP_CIPHER *c_func, const EVP_MD *h_func)
-  : istream(istream), first(true), last(false)
-{
-  // Setup the key and credentials
-  this->iv_len = EVP_CIPHER_iv_length(c_func);
-  this->key_len = key_len;
-
-  this->key = (unsigned char *)malloc(key_len);
-  mlock(this->key, key_len);
-  this->iv = (unsigned char *)malloc(iv_len);
-
-  memcpy(this->key, key, key_len);
-  rand(this->iv, iv_len);
-
-  // Setup the crypto
-  EVP_CIPHER_CTX_init(&cipher);
-  EVP_EncryptInit_ex(&cipher, c_func, NULL, key, iv);
-  HMAC_CTX_init(&hmac);
-  HMAC_Init_ex(&hmac, key, key_len, h_func, NULL);
-}
-
-Crypt::icstream::~icstream()
-{
-  EVP_CIPHER_CTX_cleanup(&cipher);
-  HMAC_CTX_cleanup(&hmac);
-
-  munlock(key, key_len);
-  free(key);
-  free(iv);
-}
-
-std::streamsize Crypt::icstream::readsome(char *s, std::streamsize n)
-{
-  std::streamsize len;
-  int elen;
-  unsigned int uelen;
-
-  // If this is the first just send the iv
-  if (first)
-    {
-      memcpy(s, iv, iv_len);
-      first = false;
-      return iv_len;
-    }
-
-  // Read from the input stream
-  unsigned char *in = new unsigned char[n];
-  len = istream->readsome((char*)in, n);
-
-  // Encrypt the data
-  elen = n;
-  if (len == 0)
-    {
-      delete in;
-
-      if (last)
-        return 0;
-
-      last = true;
-      EVP_EncryptFinal_ex(&cipher, (unsigned char *)s, &elen);
-      uelen = n - elen;
-      HMAC_Final(&hmac, (unsigned char *)s+elen, &uelen);
-      return elen + uelen;
-    }
-  else
-    {
-      EVP_EncryptUpdate(&cipher, (unsigned char *)s, &elen, in, len);
-      HMAC_Update(&hmac, in, len);
-
-      delete in;
-      return elen;
-    }
 }
 
 void Crypt::copy(const Crypt & crypt)

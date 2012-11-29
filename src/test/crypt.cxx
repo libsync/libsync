@@ -86,33 +86,25 @@ TEST(CryptTest, Copy)
   EXPECT_EQ(in, d.decrypt(c.encrypt(in)));
 }
 
-TEST(CryptTest, InStreamShort)
+TEST(CryptTest, EncStreamShort)
 {
   Crypt c(KEY);
-  std::stringstream ss;
+  CryptStream *cs = c.ecstream();
   std::string in = "I am awesome";
-  size_t len = c.enc_len(in.length()) + c.hash_len();
-  std::istream *stream = c.wrap((std::istream*)&ss);
-
-  return;
-
-  // Create stream output
-  ss << in;
+  size_t len = c.enc_len(in.length()) + c.hash_len(), data_len = len;
+  char *data = new char[len], *tmp_data = data;
+  ssize_t red;
 
   // Create the encrypted contents
-  char *data = new char [len], *tmp = data;
-  size_t tmp_len = len;
-  std::streamsize red;
-
-  while(tmp_len > 0)
+  cs->write(in.data(), in.length());
+  cs->write(NULL, 0);
+  while (data_len > 0)
     {
-      std::cout << tmp_len << std::endl;
-      red = stream->readsome(tmp, tmp_len);
+      red = cs->read(tmp_data, data_len);
       ASSERT_LT(0, red);
-      tmp_len -= red;
-      tmp += red;
+      tmp_data += red;
+      data_len -= red;
     }
-  delete stream;
 
   // Check proper message hashing
   std::string hash = c.sign(in), hash2(data + len - c.hash_len(), c.hash_len());
@@ -125,16 +117,49 @@ TEST(CryptTest, InStreamShort)
   EXPECT_EQ(in, out);
 
   delete [] data;
+  delete cs;
 }
 
-TEST(CryptTest, InStreamLong)
+TEST(CryptTest, DecStreamShort)
+{
+  Crypt c(KEY);
+  CryptStream *cs = c.dcstream();
+  std::string in = "I am awesome", enc = c.encrypt(in) + c.sign(in);
+  size_t len = in.length(), data_len = len;
+  char *data = new char[len], *tmp_data = data;
+  ssize_t red;
+
+  // Create the encrypted contents
+  try
+    {
+      cs->write(enc.data(), enc.length());
+      cs->write(NULL, 0);
+      while (data_len > 0)
+        {
+          red = cs->read(tmp_data, data_len);
+          ASSERT_LT(0, red);
+          tmp_data += red;
+          data_len -= red;
+        }
+    }
+  catch(const char * e)
+    {
+      std::cerr << e << std::endl;
+      throw "";
+    }
+
+  // Check that decrypted message matches
+  std::string out(data, len);
+  EXPECT_EQ(in, out);
+
+  delete [] data;
+  delete cs;
+}
+
+TEST(CryptTest, DecStreamFailRand)
 {
 }
 
-TEST(CryptTest, StreamFailRand)
-{
-}
-
-TEST(CryptTest, StreamFailSig)
+TEST(CryptTest, DecStreamFailSig)
 {
 }
