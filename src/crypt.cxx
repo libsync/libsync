@@ -113,20 +113,21 @@ std::string Crypt::encrypt(const std::string & ptext)
 std::string Crypt::decrypt(const std::string & ctext)
 {
   EVP_CIPHER_CTX cipher;
-  std::string ptext;
   int iv_len = EVP_CIPHER_iv_length(c_func), ctemp_len, ptemp_len, written;
   unsigned char iv[iv_len], *ctemp, *ptemp;
 
   // Setup the ptext string
-  ptext.resize(ctext.length());
-  ptemp = (unsigned char *)ptext.data();
-  ptemp_len = ptext.length();
+  ptemp = (unsigned char *) malloc(ctext.length());
+  ptemp_len = 0;
   ctemp = (unsigned char *)ctext.data();
   ctemp_len = ctext.length();
 
   // Copy the IV
   if (ctemp_len < iv_len)
-    throw "Cipher text is too short";
+    {
+      free(ptemp);
+      throw "Cipher text is too short";
+    }
   memcpy(iv, ctemp, iv_len);
   ctemp += iv_len;
   ctemp_len -= iv_len;
@@ -136,35 +137,67 @@ std::string Crypt::decrypt(const std::string & ctext)
   EVP_DecryptInit_ex(&cipher, c_func, NULL, key, iv);
 
   written = ptemp_len;
-  EVP_DecryptUpdate(&cipher, ptemp, &written, ctemp, ctemp_len);
-  ptemp_len -= written;
-  ptemp += written;
+  if (EVP_DecryptUpdate(&cipher, ptemp + ptemp_len,
+                        &written, ctemp, ctemp_len) != 1)
+    {
+      EVP_CIPHER_CTX_cleanup(&cipher);
+      free(ptemp);
+      throw "Cipher text is invalid";
+    }
+  ptemp_len += written;
 
   written = ptemp_len;
-  EVP_DecryptFinal_ex(&cipher, ptemp, &written);
-  ptemp_len -= written;
+  if (EVP_DecryptFinal_ex(&cipher, ptemp + ptemp_len, &written) != 1)
+    {
+      EVP_CIPHER_CTX_cleanup(&cipher);
+      free(ptemp);
+      throw "Cipher text is invalid";
+    }
+  ptemp_len += written;
 
   EVP_CIPHER_CTX_cleanup(&cipher);
 
-  // Correct the size of the plaintext string
-  ptext.resize(ptext.length() - ptemp_len);
+  // Get the plaintext string
+  std::string ptext((char*)ptemp, ptemp_len);
+  free(ptemp);
 
   return ptext;
 }
 
 std::string Crypt::hash(const std::string & msg)
 {
-  return "";
+  std::string out;
+  EVP_MD_CTX md;
+
+  // Setup the string
+  out.resize(EVP_MD_size(h_func));
+
+  // Hash the message
+  EVP_MD_CTX_init(&md);
+  EVP_DigestInit_ex(&md, h_func, NULL);
+  EVP_DigestUpdate(&md, (unsigned char *)msg.data(), msg.length());
+  EVP_DigestFinal_ex(&md, (unsigned char *)out.data(), NULL);
+  EVP_MD_CTX_cleanup(&md);
+
+  return out;
 }
 
 std::string Crypt::sign(const std::string & msg)
 {
-  return "";
-}
+  std::string out;
+  HMAC_CTX hmac;
 
-bool Crypt::check(const std::string & sig)
-{
-  return false;
+  // Setup the string
+  out.resize(EVP_MD_size(h_func));
+
+  // Hash the message
+  HMAC_CTX_init(&hmac);
+  HMAC_Init_ex(&hmac, key, key_len, h_func, NULL);
+  HMAC_Update(&hmac, (unsigned char *)msg.data(), msg.length());
+  HMAC_Final(&hmac, (unsigned char *)out.data(), NULL);
+  HMAC_CTX_cleanup(&hmac);
+
+  return out;
 }
 
 size_t Crypt::enc_len(size_t len)
