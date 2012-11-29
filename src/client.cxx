@@ -32,7 +32,7 @@
 #include "util.hxx"
 
 Client::Client(const Config & conf)
-  : conf(conf), conn(NULL), meta(NULL), file_thread(NULL),
+  : conf(conf), conn(NULL), crypt(NULL), meta(NULL), file_thread(NULL),
     pull_thread(NULL), watch_thread(NULL)
 {
   Metadata *remote = NULL;
@@ -50,6 +50,12 @@ Client::Client(const Config & conf)
         if (!conf.exists("conn_host") || !conf.exists("conn_port") ||
             !conf.exists("conn_user") || !conf.exists("conn_pass"))
           throw "Socket Connector Missing Parameters";
+        else if (conf.exists("key"))
+          conn = new SockConnector(conf.get_str("conn_host"),
+                                   conf.get_int("conn_port"),
+                                   conf.get_str("conn_user"),
+                                   conf.get_str("conn_pass"),
+                                   conf.get_str("key"));
         else
           conn = new SockConnector(conf.get_str("conn_host"),
                                    conf.get_int("conn_port"),

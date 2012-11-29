@@ -58,6 +58,7 @@ private:
   std::string sync_dir;
   Config conf;
   Connector *conn;
+  Crypt *crypt;
   Metadata *meta;
   Watchdog wd;
   std::queue<Msg> messages;

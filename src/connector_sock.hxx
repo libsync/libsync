@@ -31,12 +31,17 @@
 #include "netmsg.hxx"
 #include "connector.hxx"
 #include "metadata.hxx"
+#include "crypt.hxx"
 
 class SockConnector : public Connector
 {
 public:
   SockConnector(const std::string & host, uint16_t port,
                 const std::string & user, const std::string & pass,
+                bool reg = false);
+  SockConnector(const std::string & host, uint16_t port,
+                const std::string & user, const std::string & pass,
+                const std::string & key,
                 bool reg = false);
   ~SockConnector();
   void close();
@@ -55,6 +60,7 @@ private:
   std::string user, pass;
   Net * net;
   NetMsg * netmsg;
+  Crypt * crypt;
 
   void connect(bool reg = false);
 };

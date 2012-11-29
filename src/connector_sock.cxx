@@ -43,7 +43,17 @@ SockConnector::SockConnector(const std::string & host, uint16_t port,
                              const std::string & user, const std::string & pass,
                              bool reg)
   : closed(false), client(host, port), user(user), pass(pass),
-    net(NULL), netmsg(NULL)
+  net(NULL), netmsg(NULL), crypt(NULL)
+{
+  connect(reg);
+}
+
+SockConnector::SockConnector(const std::string & host, uint16_t port,
+                             const std::string & user, const std::string & pass,
+                             const std::string & key,
+                             bool reg)
+  : closed(false), client(host, port), user(user), pass(pass),
+    net(NULL), netmsg(NULL), crypt(new Crypt(key))
 {
   connect(reg);
 }
