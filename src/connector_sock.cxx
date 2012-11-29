@@ -19,6 +19,7 @@
   along with this program.  If not, see <http://www.gnu.org/licenses/>.
 */
 
+#include <sstream>
 #include "connector_sock.hxx"
 #include "util.hxx"
 #include "log.hxx"
@@ -116,8 +117,28 @@ void SockConnector::push_file(const std::string & filename, uint64_t modified,
       return;
     }
 
+  // Buffer the contents in memory
+  ssize_t red;
+  char buff[BUFF];
+  std::stringstream ss;
+  if (crypt == NULL)
+    while((red = data.readsome(buff, BUFF)) > 0)
+      ss.write(buff, red);
+  else
+    {
+      data_size = crypt->enc_len(data_size);
+      CryptStream *cs = crypt->ecstream();
+      while ((red = data.readsome(buff, BUFF)) > 0)
+        {
+          cs->write(buff, red);
+          while((red = cs->read(buff, BUFF)) > 0)
+            ss.write(buff, red);
+        }
+      delete cs;
+    }
+
   // Send the file contents
-  msg = netmsg->reply_and_wait(msg, &data, data_size);
+  msg = netmsg->reply_and_wait(msg, &ss, data_size);
   ret = (uint8_t*)msg->get().data();
   ret_len = msg->get().length();
   if (Read::i8(ret, ret_len) != 0)
@@ -150,12 +171,31 @@ void SockConnector::get_file(const std::string & filename, uint64_t & modified,
   modified = Read::i64(ret, ret_len);
 
   // Get the file contents
+  std::stringstream ss;
   cmd.clear();
   Write::i8(0, cmd);
   msg->set(cmd);
-  netmsg->reply_and_wait(msg, &data);
+  netmsg->reply_and_wait(msg, &ss);
   msg->set(cmd);
   netmsg->reply_only(msg);
+
+  // Buffer the contents in memory
+  ssize_t red;
+  char buff[BUFF];
+  if (crypt == NULL)
+    while((red = ss.readsome(buff, BUFF)) > 0)
+      data.write(buff, red);
+  else
+    {
+      CryptStream *cs = crypt->dcstream();
+      while ((red = ss.readsome(buff, BUFF)) > 0)
+        {
+          cs->write(buff, red);
+          while((red = cs->read(buff, BUFF)) > 0)
+            data.write(buff, red);
+        }
+      delete cs;
+    }
 }
 
 void SockConnector::delete_file(const std::string & filename,
