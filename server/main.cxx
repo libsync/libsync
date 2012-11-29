@@ -307,6 +307,7 @@ void client(std::string store_dir, Net * net, User * user)
       user_dir = handshake(net, user);
       std::string mtd_name = user_dir + ".mtd";
       netmsg = new NetMsg(net);
+      netmsg->start();
 
       // Get the user data structure
       udata_lock.lock();

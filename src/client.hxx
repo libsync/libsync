@@ -44,6 +44,7 @@ public:
    */
   Client(const Config & conf);
   ~Client();
+  void start();
 
 private:
   struct Msg

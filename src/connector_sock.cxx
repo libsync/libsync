@@ -245,4 +245,5 @@ void SockConnector::connect(bool reg)
     }
 
   netmsg = new NetMsg(net);
+  netmsg->start();
 }

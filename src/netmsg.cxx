@@ -27,9 +27,7 @@
 #define BUFF 2048
 
 NetMsg::NetMsg(Net * net)
-  : net(net), next_id(0), done(false),
-    listen(std::bind(&NetMsg::listen_thread, this)),
-    writer(std::bind(&NetMsg::writer_thread, this))
+  : net(net), next_id(0), done(false)
 {}
 
 NetMsg::~NetMsg()
@@ -41,6 +39,12 @@ NetMsg::~NetMsg()
     delete it->second;
   for (auto it = server_msgs.begin(), end = server_msgs.end(); it != end; it++)
     delete it->second;
+}
+
+void NetMsg::start()
+{
+  listen = std::thread(std::bind(&NetMsg::listen_thread, this));
+  writer = std::thread(std::bind(&NetMsg::writer_thread, this));
 }
 
 void NetMsg::close()

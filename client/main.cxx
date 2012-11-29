@@ -97,6 +97,7 @@ int main(int argc, char * argv[])
   try
     {
       client = new Client(conf);
+      client->start();
     }
   catch(const char * e)
     {

@@ -32,8 +32,8 @@
 #include "util.hxx"
 
 Client::Client(const Config & conf)
-  : conf(conf), conn(NULL), crypt(NULL), meta(NULL), file_thread(NULL),
-    pull_thread(NULL), watch_thread(NULL)
+  : done(false), conf(conf), conn(NULL), crypt(NULL), meta(NULL),
+    file_thread(NULL), pull_thread(NULL), watch_thread(NULL)
 {
   Metadata *remote = NULL;
 
@@ -68,13 +68,6 @@ Client::Client(const Config & conf)
       global_log.message("Getting the remote metadata", Log::NOTICE);
       remote = conn->get_metadata();
       merge_metadata(*remote);
-
-      // Spawn the threads for handling server transactions
-      global_log.message("Spawning Client Threads", Log::NOTICE);
-      file_thread = new std::thread(std::bind(&Client::file_master, this));
-      pull_thread = new std::thread(std::bind(&Client::pull_master, this));
-      wd.add_watch(sync_dir, true);
-      watch_thread = new std::thread(std::bind(&Client::watch_master, this));
     }
   catch(const char * e)
     {
@@ -117,6 +110,15 @@ Client::~Client()
   delete watch_thread;
   delete meta;
   delete conn;
+}
+
+void Client::start()
+{
+  global_log.message("Spawning Client Threads", Log::NOTICE);
+  file_thread = new std::thread(std::bind(&Client::file_master, this));
+  pull_thread = new std::thread(std::bind(&Client::pull_master, this));
+  wd.add_watch(sync_dir, true);
+  watch_thread = new std::thread(std::bind(&Client::watch_master, this));
 }
 
 void Client::merge_metadata(const Metadata & remote)
