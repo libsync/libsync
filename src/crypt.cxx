@@ -20,8 +20,11 @@
 */
 
 #include <openssl/evp.h>
+#include <openssl/rand.h>
+#include <openssl/hmac.h>
 #include <sys/mman.h>
 
+#include "util.hxx"
 #include "crypt.hxx"
 
 Crypt::Crypt(const std::string & key)
@@ -36,7 +39,7 @@ Crypt::Crypt(const std::string & key)
   mlock(this->key, key_len);
   mlock(this->iv, iv_len);
 
-  derive_key(key, this->key, key_len);
+  derive_key(key, "fh$#WEFSdf4576", 1000, this->key, key_len);
   rand(this->iv, iv_len);
 }
 
@@ -138,11 +141,44 @@ void Crypt::clear()
   free(iv);
 }
 
-void Crypt::derive_key(const std::string & mat,
-                       unsigned char *key, size_t key_len)
+void Crypt::derive_key(const std::string & mat, const std::string & salt,
+                       size_t iters, unsigned char *key, size_t key_len)
 {
+  size_t md_size = EVP_MD_size(h_func), written, i, salt_len, times = 0;
+  unsigned char buff[md_size], *stemp;
+  HMAC_CTX hmac;
+
+  salt_len = salt.length() + sizeof(uint64_t);
+  stemp = new unsigned char[salt_len];
+  memcpy(stemp, salt.data(), salt.length());
+  while (key_len > 0)
+    {
+      // Create the key material for this hash segment
+      *(uint64_t*)(stemp + salt.length()) = htobe64(times);
+
+      // Perform iterations of the key hash
+      HMAC_Init_ex(&hmac, stemp, salt_len, h_func, NULL);
+      HMAC_Update(&hmac, (unsigned char *)mat.data(), mat.length());
+      HMAC_Final(&hmac, buff, NULL);
+      for (i = 1; i < iters; i++)
+        {
+          HMAC_Init_ex(&hmac, buff, md_size, h_func, NULL);
+          HMAC_Update(&hmac, (unsigned char *)mat.data(), mat.length());
+          HMAC_Final(&hmac, buff, NULL);
+        }
+
+      // Write the digest material to the keyspace
+      written = key_len < md_size ? key_len : md_size;
+      memcpy(key, buff, written);
+      key_len -= written;
+      key += written;
+
+      times++;
+    }
+  HMAC_CTX_cleanup(&hmac);
 }
 
 void Crypt::rand(unsigned char *data, size_t size)
 {
+  RAND_bytes(data, size);
 }
