@@ -121,21 +121,27 @@ void SockConnector::push_file(const std::string & filename, uint64_t modified,
   ssize_t red;
   char buff[BUFF];
   std::stringstream ss;
+  std::cout << "Started Buffering" << std::endl;
   if (crypt == NULL)
     while((red = data.readsome(buff, BUFF)) > 0)
       ss.write(buff, red);
   else
     {
-      data_size = crypt->enc_len(data_size);
+      // Write all of the data into the crypto stream
+      data_size = crypt->enc_len(data_size) + crypt->hash_len();
       CryptStream *cs = crypt->ecstream();
       while ((red = data.readsome(buff, BUFF)) > 0)
-        {
           cs->write(buff, red);
-          while((red = cs->read(buff, BUFF)) > 0)
-            ss.write(buff, red);
-        }
+
+      // Write the encrypted data to the buffer
+      cs->write(NULL, 0);
+      while((red = cs->read(buff, BUFF)) > 0)
+        ss.write(buff, red);
+
       delete cs;
     }
+
+  std::cout << "Finished Buffering: " << ss.tellp()-ss.tellg() << std::endl;
 
   // Send the file contents
   msg = netmsg->reply_and_wait(msg, &ss, data_size);
@@ -187,13 +193,15 @@ void SockConnector::get_file(const std::string & filename, uint64_t & modified,
       data.write(buff, red);
   else
     {
+      // Write the file into the crypto stream
       CryptStream *cs = crypt->dcstream();
       while ((red = ss.readsome(buff, BUFF)) > 0)
-        {
-          cs->write(buff, red);
-          while((red = cs->read(buff, BUFF)) > 0)
-            data.write(buff, red);
-        }
+        cs->write(buff, red);
+      cs->write(NULL, 0);
+
+      // Write the decrypted file
+      while((red = cs->read(buff, BUFF)) > 0)
+        data.write(buff, red);
       delete cs;
     }
 }

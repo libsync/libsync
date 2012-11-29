@@ -47,20 +47,22 @@ Client::Client(const Config & conf)
 
       // Attempt to create the connection type specified in the config
       if (!conf.exists("conn") || conf.get_str("conn") == "sock")
-        if (!conf.exists("conn_host") || !conf.exists("conn_port") ||
-            !conf.exists("conn_user") || !conf.exists("conn_pass"))
-          throw "Socket Connector Missing Parameters";
-        else if (conf.exists("key"))
-          conn = new SockConnector(conf.get_str("conn_host"),
-                                   conf.get_int("conn_port"),
-                                   conf.get_str("conn_user"),
-                                   conf.get_str("conn_pass"),
-                                   conf.get_str("key"));
-        else
-          conn = new SockConnector(conf.get_str("conn_host"),
-                                   conf.get_int("conn_port"),
-                                   conf.get_str("conn_user"),
-                                   conf.get_str("conn_pass"));
+        {
+          if (!conf.exists("conn_host") || !conf.exists("conn_port") ||
+              !conf.exists("conn_user") || !conf.exists("conn_pass"))
+            throw "Socket Connector Missing Parameters";
+          if (conf.exists("key"))
+            conn = new SockConnector(conf.get_str("conn_host"),
+                                     conf.get_int("conn_port"),
+                                     conf.get_str("conn_user"),
+                                     conf.get_str("conn_pass"),
+                                     conf.get_str("key"));
+          else
+            conn = new SockConnector(conf.get_str("conn_host"),
+                                     conf.get_int("conn_port"),
+                                     conf.get_str("conn_user"),
+                                     conf.get_str("conn_pass"));
+        }
       else
         throw "Unrecognized connector type - " + conf.get_str("conn");
 

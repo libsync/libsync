@@ -205,7 +205,7 @@ void NetMsg::writer_thread()
           while (len > 0)
             {
               writen = BUFF > len ? len : BUFF;
-              msg->in->readsome((char*)buff, writen);
+              writen = msg->in->readsome((char*)buff, BUFF);
               net->write(buff, writen);
               len -= writen;
             }
