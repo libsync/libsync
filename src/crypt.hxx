@@ -26,6 +26,8 @@
 #include <iostream>
 #include <string>
 
+#include <openssl/evp.h>
+
 class Crypt
 {
 public:
@@ -60,13 +62,13 @@ private:
   {
   };
 
-  size_t key_len, iv_len;
-  unsigned char *key, *iv;
+  size_t key_len;
+  unsigned char *key;
   const EVP_CIPHER *c_func;
   const EVP_MD *h_func;
 
   void copy(const Crypt & crypt);
-  void clear();
+  volatile void clear();
   void derive_key(const std::string & mat, const std::string & salt,
                   size_t iters, unsigned char *key, size_t key_len);
   void rand(unsigned char *data, size_t size);

@@ -31,16 +31,10 @@ Crypt::Crypt(const std::string & key)
   : c_func(EVP_aes_256_cbc()), h_func(EVP_sha512())
 {
   key_len = EVP_CIPHER_key_length(c_func);
-  iv_len = EVP_CIPHER_iv_length(c_func);
 
   this->key = (unsigned char *) malloc(key_len);
-  this->iv = (unsigned char *) malloc(iv_len);
-
   mlock(this->key, key_len);
-  mlock(this->iv, iv_len);
-
   derive_key(key, "fh$#WEFSdf4576", 1000, this->key, key_len);
-  rand(this->iv, iv_len);
 }
 
 Crypt::Crypt(const Crypt & crypt)
@@ -79,12 +73,83 @@ std::ostream * Crypt::wrap(const std::ostream & stream)
 
 std::string Crypt::encrypt(const std::string & ptext)
 {
-  return "";
+  EVP_CIPHER_CTX cipher;
+  std::string ctext;
+  int iv_len = EVP_CIPHER_iv_length(c_func), ctemp_len, written;
+  unsigned char iv[iv_len], *ctemp;
+
+  // Generate the IV
+  rand(iv, iv_len);
+
+  // Setup the ctext string
+  ctext.resize(enc_len(ptext.length()));
+  ctemp = (unsigned char *)ctext.data();
+  ctemp_len = ctext.length();
+
+  // Add the IV to the string
+  memcpy(ctemp, iv, iv_len);
+  ctemp += iv_len;
+  ctemp_len -= iv_len;
+
+  // Encrypt the message to the ctext
+  EVP_CIPHER_CTX_init(&cipher);
+  EVP_EncryptInit_ex(&cipher, c_func, NULL, key, iv);
+
+  written = ctemp_len;
+  EVP_EncryptUpdate(&cipher, ctemp, &written,
+                    (unsigned char *)ptext.data(), ptext.length());
+  ctemp += written;
+  ctemp_len -= written;
+
+  written = ctemp_len;
+  EVP_EncryptFinal_ex(&cipher, ctemp, &written);
+  ctemp_len -= written;
+
+  EVP_CIPHER_CTX_cleanup(&cipher);
+
+  return ctext;
 }
 
 std::string Crypt::decrypt(const std::string & ctext)
 {
-  return "";
+  EVP_CIPHER_CTX cipher;
+  std::string ptext;
+  int iv_len = EVP_CIPHER_iv_length(c_func), ctemp_len, ptemp_len, written;
+  unsigned char iv[iv_len], *ctemp, *ptemp;
+
+  // Setup the ptext string
+  ptext.resize(ctext.length());
+  ptemp = (unsigned char *)ptext.data();
+  ptemp_len = ptext.length();
+  ctemp = (unsigned char *)ctext.data();
+  ctemp_len = ctext.length();
+
+  // Copy the IV
+  if (ctemp_len < iv_len)
+    throw "Cipher text is too short";
+  memcpy(iv, ctemp, iv_len);
+  ctemp += iv_len;
+  ctemp_len -= iv_len;
+
+  // Decrypt the message
+  EVP_CIPHER_CTX_init(&cipher);
+  EVP_DecryptInit_ex(&cipher, c_func, NULL, key, iv);
+
+  written = ptemp_len;
+  EVP_DecryptUpdate(&cipher, ptemp, &written, ctemp, ctemp_len);
+  ptemp_len -= written;
+  ptemp += written;
+
+  written = ptemp_len;
+  EVP_DecryptFinal_ex(&cipher, ptemp, &written);
+  ptemp_len -= written;
+
+  EVP_CIPHER_CTX_cleanup(&cipher);
+
+  // Correct the size of the plaintext string
+  ptext.resize(ptext.length() - ptemp_len);
+
+  return ptext;
 }
 
 std::string Crypt::hash(const std::string & msg)
@@ -105,8 +170,7 @@ bool Crypt::check(const std::string & sig)
 size_t Crypt::enc_len(size_t len)
 {
   size_t bs = EVP_CIPHER_block_size(c_func), rem = len % bs;
-  return EVP_CIPHER_iv_length(c_func) +
-    len - rem + (rem == 0 ? 0 : bs);
+  return EVP_CIPHER_iv_length(c_func) + len - rem + bs;
 }
 
 size_t Crypt::hash_len()
@@ -120,25 +184,23 @@ void Crypt::copy(const Crypt & crypt)
   h_func = crypt.h_func;
 
   key_len = crypt.key_len;
-  iv_len = crypt.iv_len;
-
   key = (unsigned char *) malloc(key_len);
-  iv = (unsigned char *) malloc(iv_len);
-
   mlock(key, key_len);
-  mlock(iv, iv_len);
-
   memcpy(key, crypt.key, key_len);
-  memcpy(iv, crypt.iv, iv_len);
 }
 
-void Crypt::clear()
+volatile void Crypt::clear()
 {
-  munlock(key, key_len);
-  munlock(iv, iv_len);
+  volatile unsigned char *chars;
+  size_t i;
 
+  // Zero the memory of the key
+  chars = (volatile unsigned char *)key;
+  for (i = 0; i < key_len; i++)
+    chars[i] = 0;
+
+  munlock(key, key_len);
   free(key);
-  free(iv);
 }
 
 void Crypt::derive_key(const std::string & mat, const std::string & salt,
@@ -148,9 +210,12 @@ void Crypt::derive_key(const std::string & mat, const std::string & salt,
   unsigned char buff[md_size], *stemp;
   HMAC_CTX hmac;
 
+  // Setup the modifiable salt structure
   salt_len = salt.length() + sizeof(uint64_t);
   stemp = new unsigned char[salt_len];
   memcpy(stemp, salt.data(), salt.length());
+
+  HMAC_CTX_init(&hmac);
   while (key_len > 0)
     {
       // Create the key material for this hash segment
@@ -176,6 +241,7 @@ void Crypt::derive_key(const std::string & mat, const std::string & salt,
       times++;
     }
   HMAC_CTX_cleanup(&hmac);
+  delete [] stemp;
 }
 
 void Crypt::rand(unsigned char *data, size_t size)

@@ -25,7 +25,7 @@ AM_CXXFLAGS = $(LIBDEPS_CXXFLAGS)
 libsync_la_LIBADD = $(BOOST_REGEX_LIBS) $(LIBDEPS_LIBS)
 
 #TEST SECTION
-check_PROGRAMS = log_test config_test net_test watchdog_test connector_sock_test metadata_test
+check_PROGRAMS = log_test config_test net_test watchdog_test connector_sock_test metadata_test crypt_test
 TESTS = $(check_PROGRAMS)
 
 log_test_SOURCES = test/log.cxx ../util/gtest_main.cc
@@ -45,3 +45,6 @@ connector_sock_test_LDADD = libsync.la -lgtest
 
 metadata_test_SOURCES = test/metadata.cxx ../util/gtest_main.cc
 metadata_test_LDADD = libsync.la -lgtest
+
+crypt_test_SOURCES = test/crypt.cxx ../util/gtest_main.cc
+crypt_test_LDADD = libsync.la -lgtest
