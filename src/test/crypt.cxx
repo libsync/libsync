@@ -45,16 +45,19 @@ TEST(CryptTest, HashLen)
 TEST(CryptTest, Hash)
 {
   Crypt c(KEY);
+  std::string hash = c.hash("i am a random string");
+  char chars[] {-39,97,15,-58,-13,-10,-22,-23,-97,-114,-42,10,-102,-23,-21,-128,-71,94,114,18,8,-42,64,77,-89,88,-70,53,65,125,-92,56,-5,37,16,9,-15,75,22,-74,9,-108,3,49,-111,12,92,-10,49,-88,7,-105,19,-64,26,41,-98,74,-32,-105,71,66,86,62};
+  std::string hash2(chars, c.hash_len());
+  EXPECT_EQ(hash2, hash);
 }
 
-TEST(CryptTest, SignSuccess)
+TEST(CryptTest, Sign)
 {
   Crypt c(KEY);
-}
-
-TEST(CryptTest, SignFail)
-{
-  Crypt c(KEY);
+  std::string hash = c.sign("i am a random string");
+  char chars[] {-7,68,126,-2,-111,74,12,94,54,-42,114,38,-2,-21,-51,-80,-98,17,-89,79,31,-97,102,11,87,122,-45,98,116,-9,-42,-19,-66,71,45,117,22,27,-72,-46,-81,-110,-19,-25,-105,25,124,51,-26,9,42,-53,-128,1,77,24,-43,-125,-55,74,-126,39,-94,-15};
+  std::string hash2(chars, c.hash_len());
+  EXPECT_EQ(hash2, hash);
 }
 
 TEST(CryptTest, EncDecReg)
