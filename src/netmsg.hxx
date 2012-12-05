@@ -36,6 +36,7 @@
 class Message
 {
 public:
+  virtual ~Message() {}
   virtual const std::string & get() = 0;
   virtual void set(const std::string & msg) = 0;
 };

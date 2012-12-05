@@ -99,7 +99,6 @@ void SockConnector::push_file(const std::string & filename, uint64_t modified,
 {
   // Send the command info
   std::string cmd;
-  size_t off = 0;
 
   Write::i8(CMD_PUSH, cmd);
   Write::i64(modified, cmd);

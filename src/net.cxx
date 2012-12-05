@@ -154,7 +154,7 @@ int Net::get_fd() const
 }
 
 NetServer::NetServer(const std::string & host, uint16_t port) :
-  host(host), port(port), closed(false)
+  closed(false), host(host), port(port)
 {
   struct addrinfo hints, *servinfo;
   int yes = 1, ret;

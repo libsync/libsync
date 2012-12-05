@@ -54,7 +54,7 @@ void Config::read(const std::string & filename)
     throw "Failed to open the configuration file";
 
   while((read = file.readsome(buff, 2048)) > 0)
-    for (size_t i = 0; i < read; i++)
+    for (ssize_t i = 0; i < read; i++)
       if (buff[i] == '\n' && !escaped)
         if (quote_open || (key_segment && line_started))
           throw "Invalid Configuration File";

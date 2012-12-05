@@ -65,7 +65,7 @@ ssize_t CryptStream::write(const char * buff, size_t size)
         throw "Never got an IV";
 
       // Make sure we have an HMAC sum in the stream
-      size_t md_size = EVP_MD_size(h_func), tmp_size = 0;
+      ssize_t md_size = EVP_MD_size(h_func), tmp_size = 0;
       if (decbuff.tellp() - decbuff.tellg() != md_size)
         throw "Decrypt stream missing hmac sum";
 
@@ -91,18 +91,20 @@ ssize_t CryptStream::write(const char * buff, size_t size)
       // First get the iv from the stream
       ssize_t left = decbuff.tellp() - decbuff.tellg(), in_len;
       if (iv == NULL)
-        if (left >= iv_len)
-          {
-            iv = new unsigned char[iv_len];
-            in_len = 0;
-            while (in_len < iv_len)
-              in_len += decbuff.readsome((char*)iv+in_len, iv_len-in_len);
-            left -= iv_len;
-            EVP_DecryptInit_ex(&cipher, c_func, NULL, key, iv);
-            HMAC_Init_ex(&hmac, key, key_len, h_func, NULL);
-          }
-        else
-          return size;
+        {
+          if (left >= (ssize_t)iv_len)
+            {
+              iv = new unsigned char[iv_len];
+              in_len = 0;
+              while (in_len < (ssize_t)iv_len)
+                in_len += decbuff.readsome((char*)iv+in_len, iv_len-in_len);
+              left -= iv_len;
+              EVP_DecryptInit_ex(&cipher, c_func, NULL, key, iv);
+              HMAC_Init_ex(&hmac, key, key_len, h_func, NULL);
+            }
+          else
+            return size;
+        }
 
       // Make sure we have enough ciphertext and leave hmac intact
       left -= EVP_MD_size(h_func);
