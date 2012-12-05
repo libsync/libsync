@@ -29,7 +29,7 @@
 
 CryptStream::CryptStream(bool dec, unsigned char *key, size_t key_len,
                          const EVP_CIPHER *c_func, const EVP_MD *h_func)
-  : dec(dec), c_func(c_func), h_func(h_func),
+  : dec(dec), done(false), c_func(c_func), h_func(h_func),
     iv(NULL), iv_len(EVP_CIPHER_iv_length(c_func))
 {
   // Setup the key and credentials
@@ -131,18 +131,6 @@ ssize_t CryptStream::write(const char * buff, size_t size)
       delete [] in;
       delete [] out;
    }
-  else if (size == 0)
-    {
-      // Finalize the encryption stream
-      int out_len = EVP_MD_size(h_func);
-      unsigned char out[out_len];
-      EVP_EncryptFinal_ex(&cipher, out, &out_len);
-      stream.write((char*)out, out_len);
-
-      // Write the HMAC
-      HMAC_Final(&hmac, out, NULL);
-      stream.write((char*)out, EVP_MD_size(h_func));
-    }
   else
     {
       // First encrypt should write the iv to the stream
@@ -155,13 +143,34 @@ ssize_t CryptStream::write(const char * buff, size_t size)
           HMAC_Init_ex(&hmac, key, key_len, h_func, NULL);
         }
 
-      // Encrypt the data given
-      int out_len = size + EVP_CIPHER_block_size(c_func);
-      unsigned char *out = new unsigned char[out_len];
-      EVP_EncryptUpdate(&cipher, out, &out_len, (unsigned char *)buff, size);
-      HMAC_Update(&hmac, (unsigned char *)buff, size);
-      stream.write((char*)out, out_len);
-      delete [] out;
+      if (size == 0)
+        {
+          if (done)
+            return size;
+
+          done = true;
+
+          // Finalize the encryption stream
+          int out_len = EVP_MD_size(h_func);
+          unsigned char out[out_len];
+          EVP_EncryptFinal_ex(&cipher, out, &out_len);
+          stream.write((char*)out, out_len);
+
+          // Write the HMAC
+          HMAC_Final(&hmac, out, NULL);
+          stream.write((char*)out, EVP_MD_size(h_func));
+        }
+      else
+        {
+          // Encrypt the data given
+          int out_len = size + EVP_CIPHER_block_size(c_func);
+          unsigned char *out = new unsigned char[out_len];
+          EVP_EncryptUpdate(&cipher, out, &out_len,
+                            (unsigned char *)buff, size);
+          HMAC_Update(&hmac, (unsigned char *)buff, size);
+          stream.write((char*)out, out_len);
+          delete [] out;
+        }
     }
 
   return size;

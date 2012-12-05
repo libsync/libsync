@@ -60,7 +60,7 @@ public:
    */
   ssize_t write(const char * buff, size_t size);
 private:
-  bool dec;
+  bool dec, done;
   const EVP_CIPHER *c_func;
   const EVP_MD *h_func;
   std::stringstream stream;
