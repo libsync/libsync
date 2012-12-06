@@ -31,14 +31,6 @@
 #include "log.hxx"
 #include "util.hxx"
 
-#ifdef WIN32
-#  include <filesystem>
-#  define fs std::tr2::sys
-#else
-#  include <boost/filesystem.hpp>
-#  define fs boost::filesystem
-#endif
-
 Metadata::Metadata()
 {}
 
@@ -80,7 +72,6 @@ Metadata::Metadata(const std::string & path)
 void Metadata::build(const std::string & rootpath, const std::string & path)
 {
   fs::recursive_directory_iterator it(rootpath), end;
-  std::cout << rootpath << std::endl;
   for (; it != end; it++)
     {
       std::string fn = it->path().string().substr(rootpath.length());

@@ -26,6 +26,14 @@
 #include <cstring>
 #include <string>
 
+#ifdef WIN32
+#  include <filesystem>
+#  define fs std::tr2::sys
+#else
+#  include <boost/filesystem.hpp>
+#  define fs boost::filesystem
+#endif
+
 #if defined(__linux__)
 #  include <endian.h>
 #elif defined(__FreeBSD__) || defined(__NetBSD__)

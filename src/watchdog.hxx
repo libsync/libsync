@@ -22,11 +22,16 @@
 #ifndef __WATCHDOG_HXX__
 #define __WATCHDOG_HXX__
 
+#include <queue>
 #include <vector>
 #include <mutex>
 #include <string>
 #include <unordered_map>
 #include <unordered_set>
+
+#ifdef WIN32
+#  include <Windows.h>
+#endif
 
 class Watchdog
 {
@@ -34,7 +39,8 @@ public:
   enum FileStatus
     {
       modified = 0,
-      deleted
+      deleted,
+      unknown
     };
   struct Data
   {
@@ -62,7 +68,11 @@ private:
   std::mutex no_notify_lock;
 
 #ifdef Win32
-
+  std::unordered_map<std::string, HANDLE> paths;
+  std::unordered_map<HANDLE, std::string> hds;
+  std::vector<HANDLE> handles;
+  std::queue<Data> events;
+  std::unordered_map<std::string, Data> tree;
 #else
   int inotify;
   std::unordered_map<std::string, int> paths;
