@@ -25,7 +25,6 @@
 #include <sys/types.h>
 
 #ifdef WIN32
-#  include <Windows.h>
 #  include <Winsock2.h>
 #  include <ws2tcpip.h>
 static void start()

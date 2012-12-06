@@ -1,6 +1,10 @@
 cmake_minimum_required(VERSION 2.8 FATAL_ERROR)
 project(LIBSYNC)
 
+if( MSVC ) # VS2012 doesn't support correctly the tuples yet
+	add_definitions( /D _VARIADIC_MAX=10 )
+endif()
+
 set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Wall -std=c++11")
 #set(CMAKE_CXX_FLAGS_DEBUG "-O0 -g")
 #set(CMAKE_CXX_FLAGS_MINSIZEREL "-Os -DNDEBUG")
