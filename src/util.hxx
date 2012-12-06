@@ -36,7 +36,7 @@
 #  define be32toh(x) betoh32(x)
 #  define be64toh(x) betoh64(x)
 #elif defined(WIN32)
-#  include <Win sock2.h>
+#  include <Winsock2.h>
 #  define be16toh(x) ntohs(x)
 #  define be32toh(x) ntohl(x)
 #  define be64toh(x) htobe64(x)

@@ -20,7 +20,6 @@
 */
 
 #include "util.hxx"
-#include <unistd.h>
 
 uint8_t Read::i8(uint8_t * & data, size_t & size)
 {

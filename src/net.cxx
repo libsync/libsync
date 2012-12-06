@@ -22,12 +22,18 @@
 #include <string>
 #include <errno.h>
 #include <string.h>
-#include <unistd.h>
-#include <sys/socket.h>
 #include <sys/types.h>
-#include <netinet/in.h>
-#include <netdb.h>
-#include <arpa/inet.h>
+
+#ifdef WIN32
+#  include <Winsock2.h>
+#  include <ws2tcpip.h>
+#else
+#  include <unistd.h>
+#  include <sys/socket.h>
+#  include <netinet/in.h>
+#  include <netdb.h>
+#  include <arpa/inet.h>
+#endif
 
 #include "net.hxx"
 #include "log.hxx"
