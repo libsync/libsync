@@ -35,6 +35,30 @@
 #  define be16toh(x) betoh16(x)
 #  define be32toh(x) betoh32(x)
 #  define be64toh(x) betoh64(x)
+#elif defined(WIN32)
+#  include <Win sock2.h>
+#  define be16toh(x) ntohs(x)
+#  define be32toh(x) ntohl(x)
+#  define be64toh(x) htobe64(x)
+#  define htobe16(x) htons(x)
+#  define htobe32(x) htonl(x)
+uint64_t htobe64(uint64_t x)
+{
+  // Populate the mapping
+  union {
+    uint64_t val;
+    uint8_t bytes[8];
+  } map, num, out;
+  map.val = 0;
+  for (int i = 1; i < 8; i++)
+    map.val = map.val << 8 | i;
+
+  // Map the bytes to their proper spots
+  num.val = x;
+  for (int i = 0; i < 8; i++)
+    out.bytes[i] = num.bytes[map.bytes[i]];
+  return out.val;
+}
 #endif
 
 namespace Read

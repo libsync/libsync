@@ -40,7 +40,7 @@ public:
   void write32(uint32_t i);
   void write64(uint64_t i);
 
-  ssize_t read(uint8_t * data, size_t size);
+  int64_t read(uint8_t * data, size_t size);
   void read_all(uint8_t * data, size_t size);
   uint8_t read8();
   uint16_t read16();

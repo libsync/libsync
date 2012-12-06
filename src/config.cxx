@@ -47,14 +47,14 @@ void Config::read(const std::string & filename)
   size_t value_size = 0, key_size = 0, value_current = 0, key_current = 0;
 
   char buff[BUFF_SIZE];
-  ssize_t read;
+  int64_t read;
 
   std::ifstream file(filename, std::ios::in | std::ios::binary);
   if (file.fail())
     throw "Failed to open the configuration file";
 
   while((read = file.readsome(buff, 2048)) > 0)
-    for (ssize_t i = 0; i < read; i++)
+    for (int64_t i = 0; i < read; i++)
       if (buff[i] == '\n' && !escaped)
         if (quote_open || (key_segment && line_started))
           throw "Invalid Configuration File";

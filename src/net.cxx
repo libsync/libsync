@@ -58,7 +58,7 @@ void Net::close()
 
 void Net::write(const uint8_t * data, size_t size)
 {
-  ssize_t wrote;
+  int64_t wrote;
   while (size > 0)
     if ((wrote = send(sock, data, size, 0)) >= 0)
       {
@@ -97,14 +97,14 @@ void Net::write64(uint64_t i)
   write((uint8_t*)&i, sizeof(i));
 }
 
-ssize_t Net::read(uint8_t * data, size_t size)
+int64_t Net::read(uint8_t * data, size_t size)
 {
   return recv(sock, data, size, 0);
 }
 
 void Net::read_all(uint8_t * data, size_t size)
 {
-  ssize_t len = 0;
+  int64_t len = 0;
   while (size > 0)
     if ((len = read(data, size)) >= 0)
       {

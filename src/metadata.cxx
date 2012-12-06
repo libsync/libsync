@@ -22,7 +22,6 @@
 #include <unordered_map>
 #include <sys/types.h>
 #include <sys/stat.h>
-#include <dirent.h>
 #include <cstdint>
 #include <string>
 #include <cstring>
@@ -31,6 +30,14 @@
 #include "metadata.hxx"
 #include "log.hxx"
 #include "util.hxx"
+
+#ifdef WIN32
+#  include <filesystem>
+#  define fs std::tr2::sys
+#else
+#  include <boost/filesystem.hpp>
+#  define fs boost::filesystem
+#endif
 
 Metadata::Metadata()
 {}
@@ -72,28 +79,20 @@ Metadata::Metadata(const std::string & path)
 
 void Metadata::build(const std::string & rootpath, const std::string & path)
 {
-  DIR * dir = opendir((rootpath + path).c_str());
-  if (dir == NULL)
-    throw "Failed to calculate metadata";
-
-  struct dirent * entry;
-  while((entry = readdir(dir)) != NULL)
-    if (entry->d_type == DT_DIR && strcmp(".", entry->d_name)
-        && strcmp("..", entry->d_name))
-      build(rootpath, path + entry->d_name + "/");
-    else if (entry->d_type == DT_REG)
-      {
-        struct stat stats;
-        if (stat((rootpath + path + entry->d_name).c_str(), &stats) < 0)
-          continue;
-        Data d;
-        d.modified = stats.st_mtime;
-        d.deleted = false;
-        d.size = stats.st_size;
-        files[path + entry->d_name] = d;
-      }
-
-  closedir(dir);
+  fs::recursive_directory_iterator it(rootpath), end;
+  std::cout << rootpath << std::endl;
+  for (; it != end; it++)
+    {
+      std::string fn = it->path().string().substr(rootpath.length());
+      struct stat stats;
+      if (stat(it->path().string().c_str(), &stats) < 0)
+        continue;
+      Data d;
+      d.modified = stats.st_mtime;
+      d.deleted = false;
+      d.size = stats.st_size;
+      files[fn] = d;
+    }
 }
 
 uint8_t * Metadata::serialize(size_t & size)
