@@ -27,6 +27,7 @@
 #include <string>
 
 #ifdef WIN32
+#  include <Windows.h>
 #  include <filesystem>
 #  define fs std::tr2::sys
 #else

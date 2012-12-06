@@ -67,7 +67,7 @@ private:
   std::unordered_map<std::string, uint64_t> no_notify_old;
   std::mutex no_notify_lock;
 
-#ifdef Win32
+#ifdef WIN32
   std::unordered_map<std::string, HANDLE> paths;
   std::unordered_map<HANDLE, std::string> hds;
   std::vector<HANDLE> handles;

@@ -55,6 +55,9 @@ Watchdog::~Watchdog()
 }
 
 #ifdef WIN32
+#ifndef S_ISDIR
+#  define S_ISDIR(mode)  (((mode) & S_IFMT) == S_IFDIR)
+#endif
 
 Watchdog::Watchdog()
   : closed(false)
@@ -78,7 +81,7 @@ void Watchdog::add_watch(const std::string & path, bool recursive)
                                               FILE_NOTIFY_CHANGE_LAST_WRITE);
 
       paths[path] = hd;
-      wds[hd] = path;
+      hds[hd] = path;
       handles.push_back(hd);
 
       // Populate the filesystem tree
@@ -103,7 +106,7 @@ void Watchdog::del_watch(const std::string & path)
   if (paths.count(path) == 0)
     throw "Watchdog: Invalid Watch to Remove";
   HANDLE hd = paths[path];
-  for (auto it = handles.beign(), end = handles.end(); it != end; it++)
+  for (auto it = handles.begin(), end = handles.end(); it != end; it++)
     if (*it == hd)
       it = handles.erase(it);
   paths.erase(path);
@@ -129,7 +132,7 @@ Watchdog::Data Watchdog::wait()
                                                 FALSE, INFINITE);
 
           // Scan the directory to find the changes
-          std::string path = hds[status-WAIT_OBJECT_0];
+          std::string path = hds[(HANDLE)(status-WAIT_OBJECT_0)];
           for (fs::recursive_directory_iterator it(path), end; it != end; it++)
             {
               std::string fulln = it->path().string(),
