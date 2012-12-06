@@ -50,7 +50,11 @@ Net::~Net()
 
 static void local_close(int fd)
 {
+#ifdef WIN32
+  closesocket(fd);
+#else
   close(fd);
+#endif
 }
 
 void Net::close()
@@ -66,7 +70,7 @@ void Net::write(const uint8_t * data, size_t size)
 {
   int64_t wrote;
   while (size > 0)
-    if ((wrote = send(sock, data, size, 0)) >= 0)
+    if ((wrote = send(sock, (const char *)data, size, 0)) >= 0)
       {
         data += wrote;
         size -= wrote;
@@ -105,7 +109,7 @@ void Net::write64(uint64_t i)
 
 int64_t Net::read(uint8_t * data, size_t size)
 {
-  return recv(sock, data, size, 0);
+  return recv(sock, (char *)data, size, 0);
 }
 
 void Net::read_all(uint8_t * data, size_t size)
@@ -186,7 +190,8 @@ NetServer::NetServer(const std::string & host, uint16_t port) :
         continue;
 
       // Set the socket to be reusable after unclean shutdown
-      if (setsockopt(lsock, SOL_SOCKET, SO_REUSEADDR, &yes, sizeof(int)) == -1)
+      if (setsockopt(lsock, SOL_SOCKET, SO_REUSEADDR,
+                     (char *)&yes, sizeof(int)) == -1)
         {
           local_close(lsock);
           freeaddrinfo(servinfo);

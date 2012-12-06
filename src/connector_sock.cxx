@@ -117,7 +117,7 @@ void SockConnector::push_file(const std::string & filename, uint64_t modified,
     }
 
   // Buffer the contents in memory
-  ssize_t red;
+  int64_t red;
   char buff[BUFF];
   std::stringstream ss;
   std::cout << "Started Buffering" << std::endl;
@@ -185,7 +185,7 @@ void SockConnector::get_file(const std::string & filename, uint64_t & modified,
   netmsg->reply_only(msg);
 
   // Buffer the contents in memory
-  ssize_t red;
+  int64_t red;
   char buff[BUFF];
   if (crypt == NULL)
     while((red = ss.readsome(buff, BUFF)) > 0)
