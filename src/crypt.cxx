@@ -444,7 +444,7 @@ void Crypt::derive_key(const std::string & mat, const std::string & salt,
     }
   HMAC_CTX_cleanup(&hmac);
   delete [] stemp;
-  delete[] buff
+  delete[] buff;
 }
 
 void Crypt::rand(unsigned char *data, size_t size)
