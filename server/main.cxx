@@ -346,7 +346,7 @@ void client(std::string store_dir, Net * net, User * user)
       udata_lock.unlock();
 
       // Make sure the data directory exists
-      mkdir(user_dir.c_str(), 0755);
+      fs::create_directory(fs::path(user_dir));
 
       while (true)
         {

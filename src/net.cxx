@@ -25,15 +25,36 @@
 #include <sys/types.h>
 
 #ifdef WIN32
+#  include <Windows.h>
 #  include <Winsock2.h>
 #  include <ws2tcpip.h>
+static void start()
+{
+  WSADATA wsaData;
+  WORD wVersionRequested;
+  wVersionRequested = MAKEWORD(2, 2);
+  WSAStartup(wVersionRequested, &wsaData);
+}
 #else
 #  include <unistd.h>
 #  include <sys/socket.h>
 #  include <netinet/in.h>
 #  include <netdb.h>
 #  include <arpa/inet.h>
+static void start()
+{
+}
 #endif
+
+static int on = 0;
+static void global_start()
+{
+  if (on == 0)
+    {
+      start();
+      on = 1;
+    }
+}
 
 #include "net.hxx"
 #include "log.hxx"
@@ -169,6 +190,8 @@ NetServer::NetServer(const std::string & host, uint16_t port) :
   struct addrinfo hints, *servinfo;
   int yes = 1, ret;
 
+  global_start();
+
   // Allow our socket to bind to both IPv4/v6 on TCP
   memset(&hints, 0, sizeof hints);
   hints.ai_family = AF_UNSPEC;
@@ -280,7 +303,9 @@ void NetServer::close()
 
 NetClient::NetClient(const std::string & host, uint16_t port) :
   host(host), port(port)
-{}
+{
+  global_start();
+}
 
 static int local_connect(int socket, const struct sockaddr * address,
                          socklen_t address_len)

@@ -29,9 +29,7 @@
 #include "openssl/evp.h"
 #include "openssl/hmac.h"
 
-#ifdef WIN32
-#  define ssize_t int64_t
-#endif
+#include "util.hxx"
 
 class CryptStream
 {

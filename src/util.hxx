@@ -45,6 +45,7 @@
 #  define be32toh(x) betoh32(x)
 #  define be64toh(x) betoh64(x)
 #elif defined(WIN32)
+#  define ssize_t int64_t
 #  include <Windows.h>
 #  define be16toh(x) ntohs(x)
 #  define be32toh(x) ntohl(x)
