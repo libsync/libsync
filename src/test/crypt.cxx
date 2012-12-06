@@ -21,7 +21,7 @@
 
 #include <sstream>
 #include <cstdio>
-#include <gtest/gtest.h>
+#include "gtest/gtest.h"
 #include "crypt.hxx"
 
 #define KEY "i am awesome"

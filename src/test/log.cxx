@@ -23,7 +23,7 @@
 #include <sstream>
 #include <cstdio>
 #include <boost/regex.hpp>
-#include <gtest/gtest.h>
+#include "gtest/gtest.h"
 #include "log.hxx"
 
 TEST(LogTest, Trivial)
