@@ -6,6 +6,8 @@ if(NOT CMAKE_SYSTEM_NAME MATCHES "Windows")
 	find_package(Boost COMPONENTS regex filesystem system REQUIRED)
 endif()
 
+include_directories(${OPENSSL_INCLUDE_DIR})
+
 add_library(sync client.cxx config.cxx connector_sock.cxx crypt.cxx log.cxx messages.cxx metadata.cxx net.cxx netmsg.cxx util.cxx watchdog.cxx)
 target_link_libraries(sync ${LIBS} ${Boost_FILESYSTEM_LIBRARY} ${Boost_SYSTEM_LIBRARY})
 

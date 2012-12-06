@@ -26,8 +26,8 @@
 #include <cstring>
 #include <string>
 
-#include <openssl/evp.h>
-#include <openssl/hmac.h>
+#include "openssl/evp.h"
+#include "openssl/hmac.h"
 
 class CryptStream
 {

@@ -19,9 +19,9 @@
   along with this program.  If not, see <http://www.gnu.org/licenses/>.
 */
 
-#include <openssl/evp.h>
-#include <openssl/rand.h>
-#include <openssl/hmac.h>
+#include "openssl/evp.h"
+#include "openssl/rand.h"
+#include "openssl/hmac.h"
 #include <sys/mman.h>
 
 #include "util.hxx"
