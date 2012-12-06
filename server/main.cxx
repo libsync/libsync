@@ -298,7 +298,7 @@ void client(std::string store_dir, Net * net, User * user)
   UserData * data = NULL;
   NetMsg * netmsg = NULL;
   std::string user_dir;
-  uint64_t mtd_size;
+  size_t mtd_size;
   uint8_t * mtd_buff;
   bool mtd_exists = false;
 
