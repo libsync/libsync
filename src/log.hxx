@@ -36,6 +36,7 @@ class Log
 public:
   /**
    */
+#undef ERROR
   static const int ERROR = 1, WARNING = 2, NOTICE = 3, DEBUG = 4;
 
   /**

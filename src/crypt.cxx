@@ -22,7 +22,14 @@
 #include "openssl/evp.h"
 #include "openssl/rand.h"
 #include "openssl/hmac.h"
-#include <sys/mman.h>
+
+#ifdef WIN32
+#  include <Windows.h>
+#  define mlock(x, s) VirtualLock(x, s)
+#  define munlock(x, s) VirtualUnlock(x, s)
+#else
+#  include <sys/mman.h>
+#endif
 
 #include "util.hxx"
 #include "crypt.hxx"
@@ -70,10 +77,15 @@ ssize_t CryptStream::write(const char * buff, size_t size)
         throw "Decrypt stream missing hmac sum";
 
       // Finalize the cipher and write the rest of the ciphertext
-      unsigned char data[md_size], data2[md_size];
+      unsigned char *data = new unsigned char[md_size],
+        *data2 = new unsigned char[md_size];
       int dec_len = md_size;
       if (EVP_DecryptFinal_ex(&cipher, data, &dec_len) != 1)
-        throw "Failed to decrypt final block";
+        {
+          delete[] data;
+          delete[] data2;
+          throw "Failed to decrypt final block";
+        }
       stream.write((char*)data, dec_len);
       HMAC_Update(&hmac, data, dec_len);
 
@@ -82,7 +94,13 @@ ssize_t CryptStream::write(const char * buff, size_t size)
       while (tmp_size < md_size)
         tmp_size += decbuff.readsome((char*)data2+tmp_size, md_size-tmp_size);
       if (memcmp(data, data2, md_size) != 0)
-        throw "HMAC sums do not match";
+        {
+          delete[] data;
+          delete[] data2;
+          throw "HMAC sums do not match";
+        }
+      delete[] data;
+      delete[] data2;
     }
   else if (dec)
     {
@@ -152,13 +170,14 @@ ssize_t CryptStream::write(const char * buff, size_t size)
 
           // Finalize the encryption stream
           int out_len = EVP_MD_size(h_func);
-          unsigned char out[out_len];
+          unsigned char *out = new unsigned char[out_len];
           EVP_EncryptFinal_ex(&cipher, out, &out_len);
           stream.write((char*)out, out_len);
 
           // Write the HMAC
           HMAC_Final(&hmac, out, NULL);
           stream.write((char*)out, EVP_MD_size(h_func));
+          delete[] out;
         }
       else
         {
@@ -221,7 +240,7 @@ std::string Crypt::encrypt(const std::string & ptext)
   EVP_CIPHER_CTX cipher;
   std::string ctext;
   int iv_len = EVP_CIPHER_iv_length(c_func), ctemp_len, written;
-  unsigned char iv[iv_len], *ctemp;
+  unsigned char *iv = new unsigned char[iv_len], *ctemp;
 
   // Generate the IV
   rand(iv, iv_len);
@@ -251,6 +270,7 @@ std::string Crypt::encrypt(const std::string & ptext)
   ctemp_len -= written;
 
   EVP_CIPHER_CTX_cleanup(&cipher);
+  delete[] iv;
 
   return ctext;
 }
@@ -259,7 +279,7 @@ std::string Crypt::decrypt(const std::string & ctext)
 {
   EVP_CIPHER_CTX cipher;
   int iv_len = EVP_CIPHER_iv_length(c_func), ctemp_len, ptemp_len, written;
-  unsigned char iv[iv_len], *ctemp, *ptemp;
+  unsigned char *iv = new unsigned char[iv_len], *ctemp, *ptemp;
 
   // Setup the ptext string
   ptemp = (unsigned char *) malloc(ctext.length());
@@ -271,6 +291,7 @@ std::string Crypt::decrypt(const std::string & ctext)
   if (ctemp_len < iv_len)
     {
       free(ptemp);
+      delete[] iv;
       throw "Cipher text is too short";
     }
   memcpy(iv, ctemp, iv_len);
@@ -287,6 +308,7 @@ std::string Crypt::decrypt(const std::string & ctext)
     {
       EVP_CIPHER_CTX_cleanup(&cipher);
       free(ptemp);
+      delete[] iv;
       throw "Cipher text is invalid";
     }
   ptemp_len += written;
@@ -296,6 +318,7 @@ std::string Crypt::decrypt(const std::string & ctext)
     {
       EVP_CIPHER_CTX_cleanup(&cipher);
       free(ptemp);
+      delete[] iv;
       throw "Cipher text is invalid";
     }
   ptemp_len += written;
@@ -305,6 +328,7 @@ std::string Crypt::decrypt(const std::string & ctext)
   // Get the plaintext string
   std::string ptext((char*)ptemp, ptemp_len);
   free(ptemp);
+  delete[] iv;
 
   return ptext;
 }
@@ -312,7 +336,7 @@ std::string Crypt::decrypt(const std::string & ctext)
 std::string Crypt::hash(const std::string & msg)
 {
   size_t md_size = EVP_MD_size(h_func);
-  unsigned char out[md_size];
+  unsigned char *out = new unsigned char[md_size];
   EVP_MD_CTX md;
 
   // Hash the message
@@ -322,13 +346,15 @@ std::string Crypt::hash(const std::string & msg)
   EVP_DigestFinal_ex(&md, out, NULL);
   EVP_MD_CTX_cleanup(&md);
 
-  return std::string((char*)out, md_size);
+  std::string ret((char*)out, md_size);
+  delete[] out;
+  return ret;
 }
 
 std::string Crypt::sign(const std::string & msg)
 {
   size_t md_size = EVP_MD_size(h_func);
-  unsigned char out[md_size];
+  unsigned char *out = new unsigned char[md_size];
   HMAC_CTX hmac;
 
   // Hash the message
@@ -338,7 +364,9 @@ std::string Crypt::sign(const std::string & msg)
   HMAC_Final(&hmac, out, NULL);
   HMAC_CTX_cleanup(&hmac);
 
-  return std::string((char*)out, md_size);
+  std::string ret((char*)out, md_size);
+  delete[] out;
+  return ret;
 }
 
 size_t Crypt::enc_len(size_t len)
@@ -381,7 +409,7 @@ void Crypt::derive_key(const std::string & mat, const std::string & salt,
                        size_t iters, unsigned char *key, size_t key_len)
 {
   size_t md_size = EVP_MD_size(h_func), written, i, salt_len, times = 0;
-  unsigned char buff[md_size], *stemp;
+  unsigned char *buff = new unsigned char[md_size], *stemp;
   HMAC_CTX hmac;
 
   // Setup the modifiable salt structure
@@ -416,6 +444,7 @@ void Crypt::derive_key(const std::string & mat, const std::string & salt,
     }
   HMAC_CTX_cleanup(&hmac);
   delete [] stemp;
+  delete[] buff
 }
 
 void Crypt::rand(unsigned char *data, size_t size)
