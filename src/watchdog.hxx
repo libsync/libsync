@@ -22,6 +22,7 @@
 #ifndef __WATCHDOG_HXX__
 #define __WATCHDOG_HXX__
 
+#include <vector>
 #include <mutex>
 #include <string>
 #include <unordered_map>
@@ -55,16 +56,21 @@ public:
 
   Data wait();
 private:
-  int inotify;
   bool closed;
-  std::unordered_map<std::string, int> paths;
-  std::unordered_map<int, std::string> wds;
-  std::string inotify_bytes;
   std::unordered_set<std::string> no_notify;
   std::unordered_map<std::string, uint64_t> no_notify_old;
   std::mutex no_notify_lock;
 
+#ifdef Win32
+
+#else
+  int inotify;
+  std::unordered_map<std::string, int> paths;
+  std::unordered_map<int, std::string> wds;
+  std::string inotify_bytes;
+
   std::string gather_event();
+#endif
 };
 
 #endif
