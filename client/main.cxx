@@ -32,6 +32,10 @@
 #include "../src/config.hxx"
 #include "../src/client.hxx"
 
+#ifdef WIN32
+#undef ERROR
+#endif
+
 Client *client;
 std::mutex *endlock;
 
