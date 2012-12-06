@@ -29,7 +29,7 @@
 TEST(WatchdogTest, Basic)
 {
   Watchdog wd;
-  fs::create_directory("test/watchdog");
+  fs::create_directory(fs::path("test/watchdog"));
   wd.add_watch("test/watchdog");
 
   FILE * f = fopen("test/watchdog/basic", "w");
@@ -47,8 +47,8 @@ TEST(WatchdogTest, Basic)
 TEST(WatchdogTest, RemoveWatch)
 {
   Watchdog wd;
-  fs::create_directory("test/watchdog");
-  fs::create_directory("test/watchdog2");
+  fs::create_directory(fs::path("test/watchdog"));
+  fs::create_directory(fs::path("test/watchdog2"));
   wd.add_watch("test/watchdog");
   wd.add_watch("test/watchdog2");
   wd.del_watch("test/watchdog");
@@ -72,7 +72,7 @@ TEST(WatchdogTest, RemoveWatch)
 TEST(WatchdogTest, RemoveFile)
 {
   Watchdog wd;
-  fs::create_directory("test/watchdog");
+  fs::create_directory(fs::path("test/watchdog"));
   FILE * f = fopen("test/watchdog/basic", "w");
   fclose(f);
   wd.add_watch("test/watchdog");
@@ -90,8 +90,8 @@ TEST(WatchdogTest, RemoveFile)
 TEST(WatchdogTest, Recursive)
 {
   Watchdog wd;
-  fs::create_directory("test/watchdog");
-  fs::create_directory("test/watchdog/dir");
+  fs::create_directory(fs::path("test/watchdog"));
+  fs::create_directory(fs::path("test/watchdog/dir"));
   wd.add_watch("test/watchdog", true);
 
   FILE * f = fopen("test/watchdog/dir/basic", "w");
