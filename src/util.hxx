@@ -30,6 +30,7 @@
 #  include <Windows.h>
 #  include <filesystem>
 #  define fs std::tr2::sys
+#  pragma comment(lib, "Ws2_32.lib")
 #else
 #  include <boost/filesystem.hpp>
 #  define fs boost::filesystem

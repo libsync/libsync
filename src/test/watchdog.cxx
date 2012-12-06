@@ -21,7 +21,7 @@
 
 #include "gtest/gtest.h"
 #include "watchdog.hxx"
-#include <unistd.h>
+#include "util.hxx"
 #include <sys/stat.h>
 #include <cstdio>
 #include <iostream>
@@ -29,7 +29,7 @@
 TEST(WatchdogTest, Basic)
 {
   Watchdog wd;
-  mkdir("test/watchdog", 0777);
+  fs::create_directory("test/watchdog");
   wd.add_watch("test/watchdog");
 
   FILE * f = fopen("test/watchdog/basic", "w");
@@ -47,8 +47,8 @@ TEST(WatchdogTest, Basic)
 TEST(WatchdogTest, RemoveWatch)
 {
   Watchdog wd;
-  mkdir("test/watchdog", 0777);
-  mkdir("test/watchdog2", 0777);
+  fs::create_directory("test/watchdog");
+  fs::create_directory("test/watchdog2");
   wd.add_watch("test/watchdog");
   wd.add_watch("test/watchdog2");
   wd.del_watch("test/watchdog");
@@ -72,7 +72,7 @@ TEST(WatchdogTest, RemoveWatch)
 TEST(WatchdogTest, RemoveFile)
 {
   Watchdog wd;
-  mkdir("test/watchdog", 0777);
+  fs::create_directory("test/watchdog");
   FILE * f = fopen("test/watchdog/basic", "w");
   fclose(f);
   wd.add_watch("test/watchdog");
@@ -84,14 +84,14 @@ TEST(WatchdogTest, RemoveFile)
   EXPECT_FALSE(d.directory);
   EXPECT_EQ(Watchdog::FileStatus::deleted, d.status);
 
- remove("test/watchdog");
+  remove("test/watchdog");
 }
 
 TEST(WatchdogTest, Recursive)
 {
   Watchdog wd;
-  mkdir("test/watchdog", 0777);
-  mkdir("test/watchdog/dir", 0777);
+  fs::create_directory("test/watchdog");
+  fs::create_directory("test/watchdog/dir");
   wd.add_watch("test/watchdog", true);
 
   FILE * f = fopen("test/watchdog/dir/basic", "w");

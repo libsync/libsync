@@ -22,9 +22,16 @@
 #include <fstream>
 #include <sstream>
 #include <cstdio>
-#include <boost/regex.hpp>
+#ifdef WIN32
+#  include <regex>
+#  define boost std
+#else
+#  include <boost/regex.hpp>
+#endif
+
 #include "gtest/gtest.h"
 #include "log.hxx"
+#include "util.hxx"
 
 TEST(LogTest, Trivial)
 {
