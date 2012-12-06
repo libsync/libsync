@@ -24,8 +24,8 @@
 #include <thread>
 #include <iostream>
 #include <fstream>
-#include <signal.h>
-#include <unistd.h>
+//#include <signal.h>
+//#include <unistd.h>
 #include <mutex>
 
 #include "../src/log.hxx"
@@ -45,7 +45,7 @@ int main(int argc, char * argv[])
   Config conf;
   std::string conf_file("client.conf");
   bool daemonize = false;
-  struct sigaction quitact;
+  //struct sigaction quitact;
 
   // Catch errors in stderr until we have the log output setup
   try
@@ -115,8 +115,8 @@ int main(int argc, char * argv[])
     }
 
   // Setup the action handler for clean quitting
-  memset(&quitact, 0, sizeof(quitact));
-  quitact.sa_handler = quit;
+  //memset(&quitact, 0, sizeof(quitact));
+  //quitact.sa_handler = quit;
   //sigaction(SIGINT, &quitact, NULL);
   //sigaction(SIGQUIT, &quitact, NULL);
 

@@ -22,6 +22,9 @@ ExternalProject_Get_Property(googletest source_dir)
 ExternalProject_Get_Property(googletest binary_dir)
 INCLUDE_DIRECTORIES(${source_dir}/include)
 
+find_package(OpenSSL REQUIRED)
+include_directories(${OPENSSL_INCLUDE_DIR})
+
 add_subdirectory(src)
 add_subdirectory(client)
 add_subdirectory(server)

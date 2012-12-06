@@ -21,6 +21,26 @@
 
 #include "util.hxx"
 
+#ifdef WIN32
+uint64_t htobe64(uint64_t x)
+{
+  // Populate the mapping
+  union {
+    uint64_t val;
+    uint8_t bytes[8];
+  } map, num, out;
+  map.val = 0;
+  for (int i = 1; i < 8; i++)
+    map.val = map.val << 8 | i;
+
+  // Map the bytes to their proper spots
+  num.val = x;
+  for (int i = 0; i < 8; i++)
+    out.bytes[i] = num.bytes[map.bytes[i]];
+  return out.val;
+}
+#endif
+
 uint8_t Read::i8(uint8_t * & data, size_t & size)
 {
   if (size < 1)

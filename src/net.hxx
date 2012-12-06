@@ -22,6 +22,10 @@
 #ifndef __NET_HXX__
 #define __NET_HXX__
 
+#ifdef WIN32
+#  pragma comment(lib, "Ws2_32.lib")
+#endif
+
 #include <cstdint>
 #include <string>
 
