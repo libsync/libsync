@@ -24,8 +24,13 @@
 #include <functional>
 #include <chrono>
 #include <sys/types.h>
-#include <utime.h>
 #include <sys/stat.h>
+#ifdef WIN32
+#  include <sys/utime.h>
+#  include <time.h>
+#else
+#  include <utime.h>
+#endif
 
 #include "client.hxx"
 #include "log.hxx"
@@ -224,6 +229,7 @@ void Client::file_master()
               std::ofstream out(full_name, std::ios::out | std::ios::binary);
               conn->get_file(msg.filename, msg.file_data.modified, out);
               out.close();
+
               struct utimbuf tim;
               tim.actime = time(NULL);
               tim.modtime = msg.file_data.modified;
